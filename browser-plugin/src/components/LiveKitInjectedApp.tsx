@@ -253,108 +253,160 @@ export function LiveKitInjectedApp() {
   const isConnected = connectionStatus === 'connected'
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 font-sans text-sm">
-      <RoomContext.Provider value={room}>
-        <RoomAudioRenderer />
-        <StartAudio label="Start Audio" />
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-sans text-sm relative overflow-hidden">
+      {/* Sophisticated Background */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.1),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.08),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0deg,rgba(59,130,246,0.03)_60deg,transparent_120deg,rgba(168,85,247,0.03)_240deg,transparent_300deg)]"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_49%,rgba(255,255,255,0.01)_50%,transparent_51%)] bg-[length:60px_60px]"></div>
+      
+      {/* Glassmorphism overlay */}
+      <div className="absolute inset-0 backdrop-blur-3xl bg-gradient-to-b from-white/5 to-white/[0.02]"></div>
+      
+      <div className="relative z-10 h-full flex flex-col text-white">
+        <RoomContext.Provider value={room}>
+          <RoomAudioRenderer />
+          <StartAudio label="Start Audio" />
         
-        {/* Header Section - Microphone Selection */}
-        <div className="bg-white border-b border-gray-200 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-green-500' :
-                connectionStatus === 'connecting' ? 'bg-yellow-500' :
-                connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
-              }`} />
-              <span className="font-medium text-gray-700 capitalize">
-                {connectionStatus}
-              </span>
-              {connectionStatus === 'connecting' && (
-                <Loader className="w-4 h-4 animate-spin text-blue-500" />
-              )}
-              {connectionStatus === 'connected' && (
-                <Wifi className="w-4 h-4 text-green-500" />
-              )}
-              {connectionStatus === 'error' && (
-                <WifiOff className="w-4 h-4 text-red-500" />
-              )}
-            </div>
-          </div>
-          
-          {/* Error Message */}
-          {errorMessage && (
-            <div className={`p-3 rounded-lg mb-3 text-sm border ${
-              errorMessage.includes('granted') 
-                ? 'bg-green-50 text-green-800 border-green-200' 
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}>
+        {/* Compact Header */}
+        <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border-b border-white/10 shadow-xl">
+          <div className="px-4 py-3">
+            {/* Compact Brand & Status Row */}
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                {errorMessage.includes('granted') ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : (
-                  <AlertCircle className="w-4 h-4" />
-                )}
-                <span>{errorMessage}</span>
+                <div className="relative">
+                  <div className="w-6 h-6 bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <Volume2 className="w-3 h-3 text-white" />
+                  </div>
+                  <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${
+                    connectionStatus === 'connected' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/40' :
+                    connectionStatus === 'connecting' ? 'bg-amber-500 shadow-lg shadow-amber-500/40' :
+                    connectionStatus === 'error' ? 'bg-red-500 shadow-lg shadow-red-500/40' : 'bg-slate-500'
+                  }`}></div>
+                  {connectionStatus === 'connected' && (
+                    <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-30" />
+                  )}
+                </div>
+                <div>
+                  <h1 className="text-base font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                    JMimi AI
+                  </h1>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 text-xs">
+                      {connectionStatus === 'connected' ? 'Connected' :
+                       connectionStatus === 'connecting' ? 'Connecting...' :
+                       connectionStatus === 'error' ? 'Error' : 'Disconnected'}
+                    </span>
+                    {connectionStatus === 'connecting' && (
+                      <Loader className="w-3 h-3 animate-spin text-amber-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-400 font-medium">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {sessionStarted ? 'Active' : 'Ready'}
+                </div>
               </div>
             </div>
-          )}
-          
-          {/* Controls */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
+            
+            {/* Status Messages */}
+            {errorMessage && (
+              <div className={`p-2 rounded-lg mb-2 border backdrop-blur-sm transition-all duration-500 ${
+                errorMessage.includes('granted') 
+                  ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 text-emerald-300 border-emerald-500/30' 
+                  : 'bg-gradient-to-r from-red-500/20 to-red-600/10 text-red-300 border-red-500/30'
+              }`}>
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {errorMessage.includes('granted') ? (
+                      <CheckCircle className="w-3 h-3 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-red-400" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium leading-relaxed text-xs">{errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Compact Action Controls */}
+            <div className="flex gap-2 mb-2">
               <button
                 onClick={requestPermissions}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-blue-500/20 flex-1"
               >
-                <Settings className="w-4 h-4" />
-                Grant Permissions
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center justify-center gap-1.5">
+                  <Settings className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="text-xs">Permissions</span>
+                </div>
               </button>
               
               {!sessionStarted ? (
                 <button
                   onClick={startSession}
                   disabled={connectionStatus === 'connecting'}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  className={`group relative overflow-hidden px-3 py-2 rounded-lg transition-all duration-300 font-medium border text-xs flex-1 ${
                     connectionStatus === 'connecting'
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 text-white'
+                      ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed shadow-lg border-slate-600/30'
+                      : 'bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border-emerald-500/20'
                   }`}
                 >
-                  {connectionStatus === 'connecting' ? (
-                    <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Phone className="w-4 h-4" />
-                      Start Session
-                    </>
-                  )}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="relative flex items-center justify-center gap-1.5">
+                    {connectionStatus === 'connecting' ? (
+                      <>
+                        <Loader className="w-3 h-3 animate-spin" />
+                        <span>Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
+                        <span>Start</span>
+                      </>
+                    )}
+                  </div>
                 </button>
               ) : (
                 <button
                   onClick={endSession}
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                  className="group relative overflow-hidden bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-red-500/20 flex-1"
                 >
-                  <PhoneOff className="w-4 h-4" />
-                  End Session
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="relative flex items-center justify-center gap-1.5">
+                    <PhoneOff className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
+                    <span className="text-xs">End</span>
+                  </div>
                 </button>
               )}
             </div>
             
-            {/* Microphone Selector */}
+            {/* Compact Microphone Selector */}
             {audioDevices.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Mic className="w-4 h-4 text-gray-600" />
+              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-5 h-5 bg-gradient-to-br from-slate-700 to-slate-800 rounded-md flex items-center justify-center shadow-lg border border-white/10">
+                    <Mic className="w-3 h-3 text-blue-400" />
+                  </div>
+                  <span className="font-medium text-white text-xs">Audio Input</span>
+                </div>
                 <select
                   value={selectedMicId}
                   onChange={(e) => changeMicrophoneDevice(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-2 py-1.5 border border-white/20 rounded-md text-xs bg-white/10 backdrop-blur-sm text-white focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-300 font-medium"
                 >
                   {audioDevices.map((device) => (
-                    <option key={device.deviceId} value={device.deviceId}>
+                    <option 
+                      key={device.deviceId} 
+                      value={device.deviceId}
+                      className="bg-slate-800 text-white"
+                    >
                       {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
                     </option>
                   ))}
@@ -364,7 +416,7 @@ export function LiveKitInjectedApp() {
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Main Content */}
         <div className="flex-1 overflow-auto">
           {sessionStarted && isConnected ? (
             <div className="h-full flex flex-col">
@@ -373,32 +425,37 @@ export function LiveKitInjectedApp() {
               <InjectedAgentStatus />
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center p-8">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Volume2 className="w-8 h-8 text-blue-600" />
+            <div className="h-full flex items-center justify-center p-6">
+              <div className="text-center max-w-md">
+                {/* Hero Logo */}
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
+                    <Volume2 className="w-10 h-10 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-900">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  </div>
+                  <div className="absolute -bottom-2 -left-2 w-5 h-5 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full shadow-lg animate-bounce" style={{ animationDelay: '1s' }}></div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Welcome to JMimi</h3>
-                <p className="text-gray-600 mb-6">Your AI Voice Assistant</p>
-                <div className="text-sm text-gray-500 space-y-2">
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">1</span>
-                    <span>Grant microphone and camera permissions</span>
-                  </div>
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">2</span>
-                    <span>Select your preferred microphone</span>
-                  </div>
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">3</span>
-                    <span>Start your voice session</span>
-                  </div>
+                
+                {/* Welcome Message */}
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent">
+                    Welcome to JMimi AI
+                  </h1>
+                  <p className="text-slate-300 text-base font-medium leading-relaxed mb-1">
+                    Your Professional AI Voice Assistant
+                  </p>
+                  <p className="text-slate-400 text-xs">
+                    Experience seamless voice interactions with advanced AI technology
+                  </p>
                 </div>
               </div>
             </div>
           )}
         </div>
-      </RoomContext.Provider>
+        </RoomContext.Provider>
+      </div>
     </div>
   )
 }
@@ -429,54 +486,67 @@ function InjectedVideoArea() {
 
   return (
     <div className="flex-1 p-4">
-      {/* Video Grid */}
-      <div className="grid grid-cols-2 gap-4 h-64 mb-4">
-        {/* Agent Video */}
-        <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
+      {/* Professional Video Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-64 mb-4">
+        {/* AI Agent Video */}
+        <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl overflow-hidden shadow-xl border border-white/10">
           {hasAgentVideo ? (
             <VideoTrack trackRef={agentVideoTrack} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white">
-              <Bot className="w-12 h-12 mb-2 text-blue-400" />
-              <div className="text-sm font-medium">AI Agent</div>
-              <div className="text-xs text-gray-400 capitalize mt-1">{agentState}</div>
+            <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/5"></div>
+              <div className="relative z-10 text-center">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-xl mb-3">
+                  <Bot className="w-7 h-7 text-white" />
+                </div>
+                <div className="text-base font-bold text-white mb-1">AI Agent</div>
+                <div className="text-xs text-blue-400 capitalize font-medium px-2 py-1 bg-blue-500/20 rounded-full">{agentState}</div>
+              </div>
             </div>
           )}
-          <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-            <Bot className="w-3 h-3" />
-            Agent
+          <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1 border border-white/10">
+            <Bot className="w-3 h-3 text-blue-400" />
+            <span className="font-medium">AI Agent</span>
           </div>
         </div>
         
-        {/* Local Video */}
-        <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
+        {/* Local User Video */}
+        <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl overflow-hidden shadow-xl border border-white/10">
           {isScreenSharing ? (
             <>
               <VideoTrack trackRef={screenTrack} className="w-full h-full object-contain" />
-              <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                <Monitor className="w-3 h-3" />
-                Screen
+              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1 border border-white/10">
+                <Monitor className="w-3 h-3 text-purple-400" />
+                <span className="font-medium">Screen Share</span>
               </div>
             </>
           ) : isCameraEnabled ? (
             <>
               <VideoTrack trackRef={cameraTrack} className="w-full h-full object-cover" />
-              <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                <Video className="w-3 h-3" />
-                Camera
+              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1 border border-white/10">
+                <Video className="w-3 h-3 text-emerald-400" />
+                <span className="font-medium">Camera</span>
               </div>
             </>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white">
-              <User className="w-12 h-12 mb-2 text-gray-400" />
-              <div className="text-sm font-medium">You</div>
-              <div className="text-xs text-gray-400 text-center mt-1">
-                Audio Only
-                <br />
-                <span className="text-gray-500">Use controls below to share video</span>
+            <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/5"></div>
+              <div className="relative z-10 text-center">
+                <div className="w-14 h-14 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-xl mb-3 border border-white/10">
+                  <User className="w-7 h-7 text-slate-300" />
+                </div>
+                <div className="text-base font-bold text-white mb-1">You</div>
+                <div className="text-xs text-slate-400 text-center max-w-32 leading-relaxed">
+                  <span className="text-emerald-400 font-medium">Audio Only</span>
+                  <br />
+                  <span className="text-slate-500 text-xs">Use controls below</span>
+                </div>
               </div>
             </div>
           )}
+          <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-xs font-medium border border-white/10">
+            You
+          </div>
         </div>
       </div>
     </div>
@@ -530,62 +600,93 @@ function InjectedMediaControls() {
   }
 
   return (
-    <div className="bg-white border-t border-gray-200 p-4">
-      {/* Media Controls Bar */}
-      <div className="flex items-center justify-center gap-3">
-        {/* Microphone */}
-        <TrackToggle
-          source={Track.Source.Microphone}
-          className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
-            isMicMuted 
-              ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
-        >
-          {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-        </TrackToggle>
-        
-        {/* Camera */}
-        <button
-          onClick={toggleCamera}
-          disabled={isScreenSharing}
-          className={`p-3 rounded-full transition-all duration-200 ${
-            isScreenSharing 
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-              : isCameraEnabled 
-                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:scale-105' 
-                : 'bg-gray-500 hover:bg-gray-600 text-white shadow-lg hover:scale-105'
-          }`}
-          title={isScreenSharing ? 'Stop screen sharing to use camera' : isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
-        >
-          {isCameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-        </button>
+    <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border-t border-white/10 shadow-2xl">
+      <div className="px-4 py-3">
+        {/* Professional Media Controls */}
+        <div className="flex items-center justify-center gap-4">
+          {/* Microphone Control */}
+          <div className="flex flex-col items-center gap-1">
+            <TrackToggle
+              source={Track.Source.Microphone}
+              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+                isMicMuted 
+                  ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-red-500/30 shadow-red-600/25' 
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-emerald-500/30 shadow-emerald-600/25'
+              } hover:scale-110 active:scale-95`}
+            >
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative">
+                {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </div>
+            </TrackToggle>
+            <span className="text-xs text-slate-300 font-medium">
+              {isMicMuted ? 'Muted' : 'Active'}
+            </span>
+          </div>
+          
+          {/* Camera Control */}
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={toggleCamera}
+              disabled={isScreenSharing}
+              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+                isScreenSharing 
+                  ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed border-slate-600/30 shadow-lg' 
+                  : isCameraEnabled 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-blue-500/30 shadow-blue-600/25 hover:scale-110 active:scale-95' 
+                    : 'bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border-slate-500/30 shadow-slate-600/25 hover:scale-110 active:scale-95'
+              }`}
+              title={isScreenSharing ? 'Stop screen sharing to use camera' : isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+            >
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative">
+                {isCameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </div>
+            </button>
+            <span className="text-xs text-slate-300 font-medium">
+              {isScreenSharing ? 'Disabled' : isCameraEnabled ? 'Camera' : 'Camera'}
+            </span>
+          </div>
 
-        {/* Screen Share */}
-        <button
-          onClick={toggleScreenShare}
-          disabled={isCameraEnabled}
-          className={`p-3 rounded-full transition-all duration-200 ${
-            isCameraEnabled 
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-              : isScreenSharing 
-                ? 'bg-purple-500 hover:bg-purple-600 text-white shadow-lg hover:scale-105' 
-                : 'bg-gray-500 hover:bg-gray-600 text-white shadow-lg hover:scale-105'
-          }`}
-          title={isCameraEnabled ? 'Turn off camera to share screen' : isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
-        >
-          {isScreenSharing ? <Monitor className="w-5 h-5" /> : <MonitorOff className="w-5 h-5" />}
-        </button>
-      </div>
-      
-      {/* Status Text */}
-      <div className="text-center mt-3">
-        <p className="text-xs text-gray-600">
-          {(isCameraEnabled || isScreenSharing) 
-            ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active • Turn off to use the other option`
-            : 'Audio only • Choose camera or screen sharing above'
-          }
-        </p>
+          {/* Screen Share Control */}
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={toggleScreenShare}
+              disabled={isCameraEnabled}
+              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+                isCameraEnabled 
+                  ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed border-slate-600/30 shadow-lg' 
+                  : isScreenSharing 
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white border-purple-500/30 shadow-purple-600/25 hover:scale-110 active:scale-95' 
+                    : 'bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border-slate-500/30 shadow-slate-600/25 hover:scale-110 active:scale-95'
+              }`}
+              title={isCameraEnabled ? 'Turn off camera to share screen' : isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
+            >
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative">
+                {isScreenSharing ? <Monitor className="w-5 h-5" /> : <MonitorOff className="w-5 h-5" />}
+              </div>
+            </button>
+            <span className="text-xs text-slate-300 font-medium">
+              {isCameraEnabled ? 'Disabled' : isScreenSharing ? 'Sharing' : 'Screen'}
+            </span>
+          </div>
+        </div>
+        
+        {/* Status Information */}
+        <div className="text-center mt-3">
+          <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-1">
+            <div className={`w-2 h-2 rounded-full ${
+              (isCameraEnabled || isScreenSharing) ? 'bg-emerald-400' : 'bg-blue-400'
+            } animate-pulse`}></div>
+            <p className="text-xs text-slate-300 font-medium">
+              {(isCameraEnabled || isScreenSharing) 
+                ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active • Switch modes above`
+                : 'Audio mode • Enable camera or screen sharing for video'
+              }
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -599,58 +700,109 @@ function InjectedAgentStatus() {
   const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
   const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
   
-  const getAgentStatusColor = (state: string) => {
-    switch (state) {
-      case 'listening': return 'text-green-600 bg-green-50 border-green-200'
-      case 'thinking': return 'text-blue-600 bg-blue-50 border-blue-200'
-      case 'speaking': return 'text-purple-600 bg-purple-50 border-purple-200'
-      default: return 'text-gray-600 bg-gray-50 border-gray-200'
-    }
-  }
   
   const getAgentStatusIcon = (state: string) => {
     switch (state) {
-      case 'listening': return <Mic className="w-4 h-4" />
-      case 'thinking': return <Loader className="w-4 h-4 animate-spin" />
-      case 'speaking': return <Volume2 className="w-4 h-4" />
-      default: return <Bot className="w-4 h-4" />
+      case 'listening': return <Mic className="w-3 h-3" />
+      case 'thinking': return <Loader className="w-3 h-3 animate-spin" />
+      case 'speaking': return <Volume2 className="w-3 h-3" />
+      default: return <Bot className="w-3 h-3" />
     }
   }
   
   return (
-    <div className="bg-gray-50 border-t border-gray-200 p-4">
-      <div className="space-y-3">
-        {/* Agent Status */}
-        <div className={`flex items-center gap-3 p-3 rounded-lg border ${getAgentStatusColor(agentState)}`}>
-          <div className="flex items-center gap-2">
-            {getAgentStatusIcon(agentState)}
-            <span className="font-medium text-sm">AI Agent</span>
+    <div className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl border-t border-white/10">
+      <div className="px-4 py-3">
+        {/* Professional Agent Status */}
+        <div className={`flex items-center justify-between p-3 rounded-xl border backdrop-blur-sm transition-all duration-300 mb-3 ${
+          agentState === 'listening' ? 'bg-emerald-500/10 border-emerald-500/30 shadow-lg shadow-emerald-500/10' :
+          agentState === 'thinking' ? 'bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/10' :
+          agentState === 'speaking' ? 'bg-purple-500/10 border-purple-500/30 shadow-lg shadow-purple-500/10' :
+          'bg-white/5 border-white/10 shadow-lg'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${
+              agentState === 'listening' ? 'bg-emerald-500/20' :
+              agentState === 'thinking' ? 'bg-blue-500/20' :
+              agentState === 'speaking' ? 'bg-purple-500/20' :
+              'bg-white/10'
+            }`}>
+              {getAgentStatusIcon(agentState)}
+            </div>
+            <div>
+              <div className="text-white font-bold text-sm mb-0.5">AI Agent</div>
+              <div className={`text-xs capitalize font-semibold ${
+                agentState === 'listening' ? 'text-emerald-400' :
+                agentState === 'thinking' ? 'text-blue-400' :
+                agentState === 'speaking' ? 'text-purple-400' :
+                'text-slate-400'
+              }`}>
+                {agentState}
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <span className="text-sm capitalize font-medium">{agentState}</span>
+          <div className="text-right">
+            <div className="text-xs text-slate-400 font-medium mb-0.5">Status</div>
+            <div className={`text-xs font-bold ${
+              agentState === 'listening' ? 'text-emerald-400' :
+              agentState === 'thinking' ? 'text-blue-400' :
+              agentState === 'speaking' ? 'text-purple-400' :
+              'text-slate-400'
+            }`}>
+              {agentState === 'listening' ? '🎤 Ready' :
+               agentState === 'thinking' ? '🧠 Processing' :
+               agentState === 'speaking' ? '🔊 Responding' :
+               '⏳ Initializing'}
+            </div>
           </div>
         </div>
         
-        {/* Session Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center gap-2 text-gray-600 text-xs mb-1">
-              <User className="w-3 h-3" />
-              <span>Participants</span>
+        {/* Session Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Participants Card */}
+          <div className="bg-white/5 backdrop-blur-sm p-3 rounded-xl border border-white/10 shadow-xl hover:shadow-2xl hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-lg">
+                <User className="w-3 h-3 text-blue-400" />
+              </div>
+              <span className="text-slate-300 font-medium text-xs">Participants</span>
             </div>
-            <div className="font-semibold text-lg text-gray-800">{participants.length + 1}</div>
+            <div className="text-lg font-bold text-white">{participants.length + 1}</div>
+            <div className="text-xs text-slate-400">Active in session</div>
           </div>
           
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center gap-2 text-gray-600 text-xs mb-1">
-              {isScreenSharing ? <Monitor className="w-3 h-3" /> : 
-               isCameraEnabled ? <Video className="w-3 h-3" /> : 
-               <Volume2 className="w-3 h-3" />}
-              <span>Mode</span>
+          {/* Mode Card */}
+          <div className="bg-white/5 backdrop-blur-sm p-3 rounded-xl border border-white/10 shadow-xl hover:shadow-2xl hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`p-1.5 rounded-lg ${
+                isScreenSharing ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10' :
+                isCameraEnabled ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10' :
+                'bg-gradient-to-br from-slate-500/20 to-slate-600/10'
+              }`}>
+                {isScreenSharing ? <Monitor className="w-3 h-3 text-purple-400" /> :
+                 isCameraEnabled ? <Video className="w-3 h-3 text-emerald-400" /> :
+                 <Volume2 className="w-3 h-3 text-slate-400" />}
+              </div>
+              <span className="text-slate-300 font-medium text-xs">Current Mode</span>
             </div>
-            <div className="font-semibold text-sm text-gray-800">
-              {isScreenSharing ? 'Screen' : isCameraEnabled ? 'Video' : 'Audio'}
+            <div className="text-sm font-bold text-white">
+              {isScreenSharing ? 'Screen Share' : isCameraEnabled ? 'Video Call' : 'Audio Only'}
             </div>
+            <div className="text-xs text-slate-400">
+              {isScreenSharing ? 'Sharing display' : isCameraEnabled ? 'Camera active' : 'Voice conversation'}
+            </div>
+          </div>
+          
+          {/* Connection Quality */}
+          <div className="bg-white/5 backdrop-blur-sm p-3 rounded-xl border border-white/10 shadow-xl hover:shadow-2xl hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 rounded-lg">
+                <Wifi className="w-3 h-3 text-emerald-400" />
+              </div>
+              <span className="text-slate-300 font-medium text-xs">Connection</span>
+            </div>
+            <div className="text-sm font-bold text-emerald-400">Excellent</div>
+            <div className="text-xs text-slate-400">Low latency</div>
           </div>
         </div>
       </div>
