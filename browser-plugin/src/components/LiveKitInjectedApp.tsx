@@ -131,14 +131,8 @@ export function LiveKitInjectedApp() {
             setErrorMessage(`Microphone failed: ${micError.message}`)
           }
           
-          console.log('📹 Enabling camera in injected context...')
-          try {
-            await room.localParticipant.setCameraEnabled(true)
-            console.log('✅ Camera enabled successfully')
-          } catch (camError) {
-            console.error('⚠️ Camera enable failed:', camError)
-            // Camera failure is not critical
-          }
+          // Do not enable camera automatically - let user choose between camera or screen share
+          console.log('📹 Camera and screen share will be controlled by user buttons')
           
           setSessionStarted(true)
           console.log('🎉 Injected session fully started!')
@@ -172,7 +166,10 @@ export function LiveKitInjectedApp() {
       console.log('✅ Camera permission granted')
       camStream.getTracks().forEach(track => track.stop())
       
-      setErrorMessage('Media permissions granted! You can now start the session.')
+      // Note: Screen sharing permission is requested on-demand when user clicks "Share Screen"
+      // This is because getDisplayMedia() must be called in response to user interaction
+      
+      setErrorMessage('Microphone and camera permissions granted! Use the buttons below to choose camera or screen sharing.')
       
     } catch (error) {
       console.error('❌ Media permission failed in injected context:', error)
@@ -322,18 +319,33 @@ function InjectedVideoArea() {
   const { localParticipant } = useLocalParticipant()
   
   const cameraPublication = localParticipant.getTrackPublication(Track.Source.Camera)
+  const screenPublication = localParticipant.getTrackPublication(Track.Source.ScreenShare)
+  
   const cameraTrack = cameraPublication ? {
     source: Track.Source.Camera,
     participant: localParticipant,
     publication: cameraPublication
   } : undefined
 
+  const screenTrack = screenPublication ? {
+    source: Track.Source.ScreenShare,
+    participant: localParticipant,
+    publication: screenPublication
+  } : undefined
+
   const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted
+  const isScreenSharing = screenTrack && !screenTrack.publication.isMuted
   const hasAgentVideo = agentVideoTrack !== undefined
+  const hasLocalVideo = isCameraEnabled || isScreenSharing
 
   return (
     <div style={{ padding: '12px' }}>
-      <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>Video Streams</div>
+      <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>
+        Video Streams 
+        {isScreenSharing && ' (Screen Sharing)'}
+        {isCameraEnabled && ' (Camera)'}
+        {!hasLocalVideo && ' (Audio Only)'}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', height: '200px' }}>
         {/* Agent Video */}
         <div style={{ 
@@ -354,20 +366,54 @@ function InjectedVideoArea() {
           )}
         </div>
         
-        {/* Local Video */}
+        {/* Local Video or Placeholder */}
         <div style={{ 
           background: '#f3f4f6', 
           borderRadius: '8px', 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: 'center' 
+          justifyContent: 'center',
+          position: 'relative'
         }}>
-          {isCameraEnabled ? (
-            <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {isScreenSharing ? (
+            <>
+              <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              <div style={{ 
+                position: 'absolute', 
+                top: '4px', 
+                left: '4px', 
+                background: 'rgba(0,0,0,0.7)', 
+                color: 'white', 
+                padding: '2px 6px', 
+                borderRadius: '4px', 
+                fontSize: '10px' 
+              }}>
+                🖥️ Screen
+              </div>
+            </>
+          ) : isCameraEnabled ? (
+            <>
+              <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ 
+                position: 'absolute', 
+                top: '4px', 
+                left: '4px', 
+                background: 'rgba(0,0,0,0.7)', 
+                color: 'white', 
+                padding: '2px 6px', 
+                borderRadius: '4px', 
+                fontSize: '10px' 
+              }}>
+                📹 Camera
+              </div>
+            </>
           ) : (
             <div style={{ textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '20px' }}>📹</div>
-              <div style={{ fontSize: '10px' }}>You</div>
+              <div style={{ fontSize: '20px' }}>🔇</div>
+              <div style={{ fontSize: '10px' }}>Audio Only</div>
+              <div style={{ fontSize: '9px', marginTop: '4px', color: '#9ca3af' }}>
+                Use buttons below to share camera or screen
+              </div>
             </div>
           )}
         </div>
@@ -379,9 +425,54 @@ function InjectedVideoArea() {
 function InjectedMediaControls() {
   const micTrack = useTracks([Track.Source.Microphone])[0]
   const cameraTrack = useTracks([Track.Source.Camera])[0]
+  const screenTrack = useTracks([Track.Source.ScreenShare])[0]
+  const { localParticipant } = useLocalParticipant()
   
   const isMicMuted = micTrack?.publication?.isMuted ?? true
-  const isCameraMuted = cameraTrack?.publication?.isMuted ?? true
+  const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
+  const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
+
+  const toggleCamera = async () => {
+    try {
+      if (isCameraEnabled) {
+        // Turn off camera
+        await localParticipant.setCameraEnabled(false)
+        console.log('✅ Camera disabled')
+      } else {
+        // Turn off screen share first if it's active
+        if (isScreenSharing) {
+          await localParticipant.setScreenShareEnabled(false)
+          console.log('✅ Screen sharing stopped to enable camera')
+        }
+        // Turn on camera
+        await localParticipant.setCameraEnabled(true)
+        console.log('✅ Camera enabled')
+      }
+    } catch (error) {
+      console.error('❌ Camera toggle error:', error)
+    }
+  }
+
+  const toggleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        // Stop screen sharing
+        await localParticipant.setScreenShareEnabled(false)
+        console.log('✅ Screen sharing stopped')
+      } else {
+        // Turn off camera first if it's active
+        if (isCameraEnabled) {
+          await localParticipant.setCameraEnabled(false)
+          console.log('✅ Camera stopped to enable screen sharing')
+        }
+        // Start screen sharing
+        await localParticipant.setScreenShareEnabled(true)
+        console.log('✅ Screen sharing started')
+      }
+    } catch (error) {
+      console.error('❌ Screen sharing error:', error)
+    }
+  }
 
   return (
     <div style={{ 
@@ -390,7 +481,7 @@ function InjectedMediaControls() {
       borderBottom: '1px solid #e5e7eb'
     }}>
       <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>Media Controls</div>
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <TrackToggle
           source={Track.Source.Microphone}
           style={{
@@ -406,20 +497,47 @@ function InjectedMediaControls() {
           {isMicMuted ? '🔇 Mic Off' : '🎤 Mic On'}
         </TrackToggle>
         
-        <TrackToggle
-          source={Track.Source.Camera}
+        <button
+          onClick={toggleCamera}
+          disabled={isScreenSharing}
           style={{
             padding: '8px 12px',
             borderRadius: '6px',
             border: 'none',
-            background: isCameraMuted ? '#ef4444' : '#10b981',
+            background: isScreenSharing ? '#9ca3af' : (isCameraEnabled ? '#10b981' : '#6b7280'),
             color: 'white',
             fontSize: '12px',
-            cursor: 'pointer'
+            cursor: isScreenSharing ? 'not-allowed' : 'pointer',
+            opacity: isScreenSharing ? 0.6 : 1
           }}
         >
-          {isCameraMuted ? '📹 Cam Off' : '📸 Cam On'}
-        </TrackToggle>
+          {isCameraEnabled ? '� Cam On' : '� Camera'}
+        </button>
+
+        <button
+          onClick={toggleScreenShare}
+          disabled={isCameraEnabled}
+          style={{
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: 'none',
+            background: isCameraEnabled ? '#9ca3af' : (isScreenSharing ? '#10b981' : '#6b7280'),
+            color: 'white',
+            fontSize: '12px',
+            cursor: isCameraEnabled ? 'not-allowed' : 'pointer',
+            opacity: isCameraEnabled ? 0.6 : 1
+          }}
+        >
+          {isScreenSharing ? '🖥️ Stop Share' : '📱 Share Screen'}
+        </button>
+      </div>
+      
+      {/* Helper text */}
+      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
+        {(isCameraEnabled || isScreenSharing) 
+          ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active. Turn off to use the other option.`
+          : 'Choose camera or screen sharing (not both simultaneously)'
+        }
       </div>
     </div>
   )
@@ -428,11 +546,21 @@ function InjectedMediaControls() {
 function InjectedChatArea() {
   const participants = useRemoteParticipants()
   const { state: agentState } = useVoiceAssistant()
+  const screenTrack = useTracks([Track.Source.ScreenShare])[0]
+  const cameraTrack = useTracks([Track.Source.Camera])[0]
+  const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
+  const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
+  
+  const getVideoModeStatus = () => {
+    if (isScreenSharing) return '🖥️ Screen Sharing Mode'
+    if (isCameraEnabled) return '📹 Camera Mode'
+    return '🔊 Audio Only Mode'
+  }
   
   return (
     <div style={{ padding: '12px' }}>
       <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>
-        Chat & Status
+        Session Status
       </div>
       <div style={{ 
         background: '#f9fafb', 
@@ -443,6 +571,12 @@ function InjectedChatArea() {
       }}>
         <div>Participants: {participants.length}</div>
         <div>Agent State: {agentState}</div>
+        <div style={{ 
+          color: isScreenSharing ? '#10b981' : isCameraEnabled ? '#3b82f6' : '#6b7280', 
+          fontWeight: 500 
+        }}>
+          {getVideoModeStatus()}
+        </div>
         <div style={{ marginTop: '4px', fontSize: '10px' }}>
           Full chat implementation coming soon...
         </div>
