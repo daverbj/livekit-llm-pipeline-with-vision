@@ -253,75 +253,47 @@ export function LiveKitInjectedApp() {
   const isConnected = connectionStatus === 'connected'
 
   return (
-    <div style={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      background: '#f8fafc',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      fontSize: '14px'
-    }}>
+    <div className="h-full flex flex-col bg-gray-50 font-sans text-sm">
       <RoomContext.Provider value={room}>
         <RoomAudioRenderer />
         <StartAudio label="Start Audio" />
         
         {/* Header Section - Microphone Selection */}
-        <div style={{
-          background: 'white',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '16px',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: connectionStatus === 'connected' ? '#10b981' :
-                           connectionStatus === 'connecting' ? '#f59e0b' :
-                           connectionStatus === 'error' ? '#ef4444' : '#9ca3af'
-              }} />
-              <span style={{ 
-                fontWeight: 500, 
-                color: '#374151',
-                textTransform: 'capitalize'
-              }}>
+        <div className="bg-white border-b border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-500' :
+                connectionStatus === 'connecting' ? 'bg-yellow-500' :
+                connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+              }`} />
+              <span className="font-medium text-gray-700 capitalize">
                 {connectionStatus}
               </span>
               {connectionStatus === 'connecting' && (
-                <Loader style={{ width: '16px', height: '16px', color: '#3b82f6' }} className="animate-spin" />
+                <Loader className="w-4 h-4 animate-spin text-blue-500" />
               )}
               {connectionStatus === 'connected' && (
-                <Wifi style={{ width: '16px', height: '16px', color: '#10b981' }} />
+                <Wifi className="w-4 h-4 text-green-500" />
               )}
               {connectionStatus === 'error' && (
-                <WifiOff style={{ width: '16px', height: '16px', color: '#ef4444' }} />
+                <WifiOff className="w-4 h-4 text-red-500" />
               )}
             </div>
           </div>
           
           {/* Error Message */}
           {errorMessage && (
-            <div style={{
-              padding: '12px',
-              borderRadius: '8px',
-              marginBottom: '12px',
-              fontSize: '13px',
-              background: errorMessage.includes('granted') ? '#f0fdf4' : '#fef2f2',
-              color: errorMessage.includes('granted') ? '#166534' : '#991b1b',
-              border: `1px solid ${errorMessage.includes('granted') ? '#bbf7d0' : '#fecaca'}`
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className={`p-3 rounded-lg mb-3 text-sm border ${
+              errorMessage.includes('granted') 
+                ? 'bg-green-50 text-green-800 border-green-200' 
+                : 'bg-red-50 text-red-800 border-red-200'
+            }`}>
+              <div className="flex items-center gap-2">
                 {errorMessage.includes('granted') ? (
-                  <CheckCircle style={{ width: '16px', height: '16px' }} />
+                  <CheckCircle className="w-4 h-4" />
                 ) : (
-                  <AlertCircle style={{ width: '16px', height: '16px' }} />
+                  <AlertCircle className="w-4 h-4" />
                 )}
                 <span>{errorMessage}</span>
               </div>
@@ -329,28 +301,13 @@ export function LiveKitInjectedApp() {
           )}
           
           {/* Controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
               <button
                 onClick={requestPermissions}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: '#2563eb',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = '#1d4ed8'}
-                onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = '#2563eb'}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
               >
-                <Settings style={{ width: '16px', height: '16px' }} />
+                <Settings className="w-4 h-4" />
                 Grant Permissions
               </button>
               
@@ -358,39 +315,20 @@ export function LiveKitInjectedApp() {
                 <button
                   onClick={startSession}
                   disabled={connectionStatus === 'connecting'}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: connectionStatus === 'connecting' ? '#9ca3af' : '#059669',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    cursor: connectionStatus === 'connecting' ? 'not-allowed' : 'pointer',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (connectionStatus !== 'connecting') {
-                      (e.target as HTMLButtonElement).style.background = '#047857'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (connectionStatus !== 'connecting') {
-                      (e.target as HTMLButtonElement).style.background = '#059669'
-                    }
-                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                    connectionStatus === 'connecting'
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
                 >
                   {connectionStatus === 'connecting' ? (
                     <>
-                      <Loader style={{ width: '16px', height: '16px' }} className="animate-spin" />
+                      <Loader className="w-4 h-4 animate-spin" />
                       Connecting...
                     </>
                   ) : (
                     <>
-                      <Phone style={{ width: '16px', height: '16px' }} />
+                      <Phone className="w-4 h-4" />
                       Start Session
                     </>
                   )}
@@ -398,24 +336,9 @@ export function LiveKitInjectedApp() {
               ) : (
                 <button
                   onClick={endSession}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = '#b91c1c'}
-                  onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = '#dc2626'}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
                 >
-                  <PhoneOff style={{ width: '16px', height: '16px' }} />
+                  <PhoneOff className="w-4 h-4" />
                   End Session
                 </button>
               )}
@@ -423,21 +346,12 @@ export function LiveKitInjectedApp() {
             
             {/* Microphone Selector */}
             {audioDevices.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Mic style={{ width: '16px', height: '16px', color: '#6b7280' }} />
+              <div className="flex items-center gap-2">
+                <Mic className="w-4 h-4 text-gray-600" />
                 <select
                   value={selectedMicId}
                   onChange={(e) => changeMicrophoneDevice(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
                   {audioDevices.map((device) => (
                     <option key={device.deviceId} value={device.deviceId}>
@@ -451,86 +365,32 @@ export function LiveKitInjectedApp() {
         </div>
 
         {/* Content Area */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className="flex-1 overflow-auto">
           {sessionStarted && isConnected ? (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="h-full flex flex-col">
               <InjectedVideoArea />
               <InjectedMediaControls />
               <InjectedAgentStatus />
             </div>
           ) : (
-            <div style={{ 
-              height: '100%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              padding: '32px'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: '64px',
-                  height: '64px',
-                  margin: '0 auto 16px',
-                  background: '#dbeafe',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Volume2 style={{ width: '32px', height: '32px', color: '#2563eb' }} />
+            <div className="h-full flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Volume2 className="w-8 h-8 text-blue-600" />
                 </div>
-                <h3 style={{ 
-                  fontSize: '18px', 
-                  fontWeight: 600, 
-                  color: '#1f2937', 
-                  marginBottom: '8px' 
-                }}>
-                  Welcome to JMimi
-                </h3>
-                <p style={{ color: '#6b7280', marginBottom: '24px' }}>
-                  Your AI Voice Assistant
-                </p>
-                <div style={{ fontSize: '13px', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <span style={{
-                      width: '20px',
-                      height: '20px',
-                      background: '#2563eb',
-                      color: 'white',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px'
-                    }}>1</span>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Welcome to JMimi</h3>
+                <p className="text-gray-600 mb-6">Your AI Voice Assistant</p>
+                <div className="text-sm text-gray-500 space-y-2">
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">1</span>
                     <span>Grant microphone and camera permissions</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <span style={{
-                      width: '20px',
-                      height: '20px',
-                      background: '#2563eb',
-                      color: 'white',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px'
-                    }}>2</span>
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">2</span>
                     <span>Select your preferred microphone</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <span style={{
-                      width: '20px',
-                      height: '20px',
-                      background: '#2563eb',
-                      color: 'white',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px'
-                    }}>3</span>
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">3</span>
                     <span>Start your voice session</span>
                   </div>
                 </div>
@@ -568,134 +428,52 @@ function InjectedVideoArea() {
   const hasAgentVideo = agentVideoTrack !== undefined
 
   return (
-    <div style={{ flex: 1, padding: '16px' }}>
+    <div className="flex-1 p-4">
       {/* Video Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px',
-        height: '256px',
-        marginBottom: '16px'
-      }}>
+      <div className="grid grid-cols-2 gap-4 h-64 mb-4">
         {/* Agent Video */}
-        <div style={{
-          position: 'relative',
-          background: '#1f2937',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-        }}>
+        <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
           {hasAgentVideo ? (
-            <VideoTrack trackRef={agentVideoTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <VideoTrack trackRef={agentVideoTrack} className="w-full h-full object-cover" />
           ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <Bot style={{ width: '48px', height: '48px', marginBottom: '8px', color: '#60a5fa' }} />
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>AI Agent</div>
-              <div style={{
-                fontSize: '12px',
-                color: '#9ca3af',
-                textTransform: 'capitalize',
-                marginTop: '4px'
-              }}>
-                {agentState}
-              </div>
+            <div className="w-full h-full flex flex-col items-center justify-center text-white">
+              <Bot className="w-12 h-12 mb-2 text-blue-400" />
+              <div className="text-sm font-medium">AI Agent</div>
+              <div className="text-xs text-gray-400 capitalize mt-1">{agentState}</div>
             </div>
           )}
-          <div style={{
-            position: 'absolute',
-            bottom: '12px',
-            left: '12px',
-            background: 'rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <Bot style={{ width: '12px', height: '12px' }} />
+          <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+            <Bot className="w-3 h-3" />
             Agent
           </div>
         </div>
         
         {/* Local Video */}
-        <div style={{
-          position: 'relative',
-          background: '#1f2937',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-        }}>
+        <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
           {isScreenSharing ? (
             <>
-              <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              <div style={{
-                position: 'absolute',
-                bottom: '12px',
-                left: '12px',
-                background: 'rgba(0, 0, 0, 0.5)',
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <Monitor style={{ width: '12px', height: '12px' }} />
+              <VideoTrack trackRef={screenTrack} className="w-full h-full object-contain" />
+              <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                <Monitor className="w-3 h-3" />
                 Screen
               </div>
             </>
           ) : isCameraEnabled ? (
             <>
-              <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <div style={{
-                position: 'absolute',
-                bottom: '12px',
-                left: '12px',
-                background: 'rgba(0, 0, 0, 0.5)',
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <Video style={{ width: '12px', height: '12px' }} />
+              <VideoTrack trackRef={cameraTrack} className="w-full h-full object-cover" />
+              <div className="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                <Video className="w-3 h-3" />
                 Camera
               </div>
             </>
           ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <User style={{ width: '48px', height: '48px', marginBottom: '8px', color: '#9ca3af' }} />
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>You</div>
-              <div style={{
-                fontSize: '12px',
-                color: '#9ca3af',
-                textAlign: 'center',
-                marginTop: '4px'
-              }}>
+            <div className="w-full h-full flex flex-col items-center justify-center text-white">
+              <User className="w-12 h-12 mb-2 text-gray-400" />
+              <div className="text-sm font-medium">You</div>
+              <div className="text-xs text-gray-400 text-center mt-1">
                 Audio Only
                 <br />
-                <span style={{ color: '#6b7280' }}>Use controls below to share video</span>
+                <span className="text-gray-500">Use controls below to share video</span>
               </div>
             </div>
           )}
@@ -752,106 +530,57 @@ function InjectedMediaControls() {
   }
 
   return (
-    <div style={{
-      background: 'white',
-      borderTop: '1px solid #e2e8f0',
-      padding: '16px'
-    }}>
+    <div className="bg-white border-t border-gray-200 p-4">
       {/* Media Controls Bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px'
-      }}>
+      <div className="flex items-center justify-center gap-3">
         {/* Microphone */}
         <TrackToggle
           source={Track.Source.Microphone}
-          style={{
-            padding: '12px',
-            borderRadius: '50%',
-            border: 'none',
-            background: isMicMuted ? '#dc2626' : '#059669',
-            color: 'white',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
+            isMicMuted 
+              ? 'bg-red-500 hover:bg-red-600 text-white' 
+              : 'bg-green-500 hover:bg-green-600 text-white'
+          }`}
         >
-          {isMicMuted ? <MicOff style={{ width: '20px', height: '20px' }} /> : <Mic style={{ width: '20px', height: '20px' }} />}
+          {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
         </TrackToggle>
         
         {/* Camera */}
         <button
           onClick={toggleCamera}
           disabled={isScreenSharing}
-          style={{
-            padding: '12px',
-            borderRadius: '50%',
-            border: 'none',
-            background: isScreenSharing ? '#d1d5db' : (isCameraEnabled ? '#2563eb' : '#6b7280'),
-            color: 'white',
-            cursor: isScreenSharing ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: isScreenSharing ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className={`p-3 rounded-full transition-all duration-200 ${
+            isScreenSharing 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+              : isCameraEnabled 
+                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:scale-105' 
+                : 'bg-gray-500 hover:bg-gray-600 text-white shadow-lg hover:scale-105'
+          }`}
           title={isScreenSharing ? 'Stop screen sharing to use camera' : isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
-          onMouseEnter={(e) => {
-            if (!isScreenSharing) {
-              (e.target as HTMLButtonElement).style.transform = 'scale(1.05)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isScreenSharing) {
-              (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-            }
-          }}
         >
-          {isCameraEnabled ? <Video style={{ width: '20px', height: '20px' }} /> : <VideoOff style={{ width: '20px', height: '20px' }} />}
+          {isCameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
         </button>
 
         {/* Screen Share */}
         <button
           onClick={toggleScreenShare}
           disabled={isCameraEnabled}
-          style={{
-            padding: '12px',
-            borderRadius: '50%',
-            border: 'none',
-            background: isCameraEnabled ? '#d1d5db' : (isScreenSharing ? '#7c3aed' : '#6b7280'),
-            color: 'white',
-            cursor: isCameraEnabled ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: isCameraEnabled ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className={`p-3 rounded-full transition-all duration-200 ${
+            isCameraEnabled 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+              : isScreenSharing 
+                ? 'bg-purple-500 hover:bg-purple-600 text-white shadow-lg hover:scale-105' 
+                : 'bg-gray-500 hover:bg-gray-600 text-white shadow-lg hover:scale-105'
+          }`}
           title={isCameraEnabled ? 'Turn off camera to share screen' : isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
-          onMouseEnter={(e) => {
-            if (!isCameraEnabled) {
-              (e.target as HTMLButtonElement).style.transform = 'scale(1.05)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isCameraEnabled) {
-              (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-            }
-          }}
         >
-          {isScreenSharing ? <Monitor style={{ width: '20px', height: '20px' }} /> : <MonitorOff style={{ width: '20px', height: '20px' }} />}
+          {isScreenSharing ? <Monitor className="w-5 h-5" /> : <MonitorOff className="w-5 h-5" />}
         </button>
       </div>
       
       {/* Status Text */}
-      <div style={{ textAlign: 'center', marginTop: '12px' }}>
-        <p style={{ fontSize: '12px', color: '#6b7280' }}>
+      <div className="text-center mt-3">
+        <p className="text-xs text-gray-600">
           {(isCameraEnabled || isScreenSharing) 
             ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active • Turn off to use the other option`
             : 'Audio only • Choose camera or screen sharing above'
@@ -870,135 +599,56 @@ function InjectedAgentStatus() {
   const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
   const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
   
-  const getAgentStatusStyles = (state: string) => {
+  const getAgentStatusColor = (state: string) => {
     switch (state) {
-      case 'listening': 
-        return {
-          color: '#059669',
-          background: '#f0fdf4',
-          borderColor: '#bbf7d0'
-        }
-      case 'thinking': 
-        return {
-          color: '#2563eb',
-          background: '#eff6ff',
-          borderColor: '#bfdbfe'
-        }
-      case 'speaking': 
-        return {
-          color: '#7c3aed',
-          background: '#f5f3ff',
-          borderColor: '#c4b5fd'
-        }
-      default: 
-        return {
-          color: '#6b7280',
-          background: '#f9fafb',
-          borderColor: '#e5e7eb'
-        }
+      case 'listening': return 'text-green-600 bg-green-50 border-green-200'
+      case 'thinking': return 'text-blue-600 bg-blue-50 border-blue-200'
+      case 'speaking': return 'text-purple-600 bg-purple-50 border-purple-200'
+      default: return 'text-gray-600 bg-gray-50 border-gray-200'
     }
   }
   
   const getAgentStatusIcon = (state: string) => {
     switch (state) {
-      case 'listening': return <Mic style={{ width: '16px', height: '16px' }} />
-      case 'thinking': return <Loader style={{ width: '16px', height: '16px' }} className="animate-spin" />
-      case 'speaking': return <Volume2 style={{ width: '16px', height: '16px' }} />
-      default: return <Bot style={{ width: '16px', height: '16px' }} />
+      case 'listening': return <Mic className="w-4 h-4" />
+      case 'thinking': return <Loader className="w-4 h-4 animate-spin" />
+      case 'speaking': return <Volume2 className="w-4 h-4" />
+      default: return <Bot className="w-4 h-4" />
     }
   }
-
-  const statusStyles = getAgentStatusStyles(agentState)
   
   return (
-    <div style={{
-      background: '#f8fafc',
-      borderTop: '1px solid #e2e8f0',
-      padding: '16px'
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div className="bg-gray-50 border-t border-gray-200 p-4">
+      <div className="space-y-3">
         {/* Agent Status */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '12px',
-          borderRadius: '8px',
-          border: `1px solid ${statusStyles.borderColor}`,
-          background: statusStyles.background,
-          color: statusStyles.color
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className={`flex items-center gap-3 p-3 rounded-lg border ${getAgentStatusColor(agentState)}`}>
+          <div className="flex items-center gap-2">
             {getAgentStatusIcon(agentState)}
-            <span style={{ fontWeight: 500, fontSize: '14px' }}>AI Agent</span>
+            <span className="font-medium text-sm">AI Agent</span>
           </div>
-          <div style={{ flex: 1 }}>
-            <span style={{
-              fontSize: '14px',
-              textTransform: 'capitalize',
-              fontWeight: 500
-            }}>
-              {agentState}
-            </span>
+          <div className="flex-1">
+            <span className="text-sm capitalize font-medium">{agentState}</span>
           </div>
         </div>
         
         {/* Session Info */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '12px'
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '12px',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: '#6b7280',
-              fontSize: '12px',
-              marginBottom: '4px'
-            }}>
-              <User style={{ width: '12px', height: '12px' }} />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white p-3 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-gray-600 text-xs mb-1">
+              <User className="w-3 h-3" />
               <span>Participants</span>
             </div>
-            <div style={{
-              fontWeight: 600,
-              fontSize: '18px',
-              color: '#1f2937'
-            }}>
-              {participants.length + 1}
-            </div>
+            <div className="font-semibold text-lg text-gray-800">{participants.length + 1}</div>
           </div>
           
-          <div style={{
-            background: 'white',
-            padding: '12px',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: '#6b7280',
-              fontSize: '12px',
-              marginBottom: '4px'
-            }}>
-              {isScreenSharing ? <Monitor style={{ width: '12px', height: '12px' }} /> : 
-               isCameraEnabled ? <Video style={{ width: '12px', height: '12px' }} /> : 
-               <Volume2 style={{ width: '12px', height: '12px' }} />}
+          <div className="bg-white p-3 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-gray-600 text-xs mb-1">
+              {isScreenSharing ? <Monitor className="w-3 h-3" /> : 
+               isCameraEnabled ? <Video className="w-3 h-3" /> : 
+               <Volume2 className="w-3 h-3" />}
               <span>Mode</span>
             </div>
-            <div style={{
-              fontWeight: 600,
-              fontSize: '14px',
-              color: '#1f2937'
-            }}>
+            <div className="font-semibold text-sm text-gray-800">
               {isScreenSharing ? 'Screen' : isCameraEnabled ? 'Video' : 'Audio'}
             </div>
           </div>
