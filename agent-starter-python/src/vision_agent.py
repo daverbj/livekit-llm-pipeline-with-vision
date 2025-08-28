@@ -168,9 +168,8 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=groq.STT(),
         llm=openai.LLM(
-            base_url="http://216.81.245.29:34360/v1",
-            api_key="EMPTY",
-            model="google/gemma-3-27b-it"
+            
+            model="gpt-4o"
         ),
         tts=openai.TTS(),
         vad=silero.VAD.load(),
