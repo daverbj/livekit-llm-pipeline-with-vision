@@ -326,7 +326,7 @@ export function LiveKitInjectedApp() {
                 </div>
                 <div>
                   <h1 className="text-base font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                    JMimi AI
+                    JMiMi AI
                   </h1>
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400 text-xs">
@@ -437,7 +437,7 @@ export function LiveKitInjectedApp() {
                 {/* Welcome Message */}
                 <div className="mb-6">
                   <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent">
-                    Welcome to JMimi AI
+                    Welcome to JMiMi AI
                   </h1>
                   <p className="text-slate-300 text-base font-medium leading-relaxed mb-1">
                     Your Professional AI Voice Assistant
