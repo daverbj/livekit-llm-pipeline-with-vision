@@ -47,6 +47,7 @@ export function LiveKitInjectedApp() {
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedMicId, setSelectedMicId] = useState<string>('')
   const [permissionsGranted, setPermissionsGranted] = useState<boolean>(false)
+  const [showMicModal, setShowMicModal] = useState<boolean>(false)
 
   // Room event handlers
   useEffect(() => {
@@ -277,12 +278,19 @@ export function LiveKitInjectedApp() {
       }
     }
     setSelectedMicId(deviceId)
+    setShowMicModal(false) // Close modal after selection
+  }
+
+  // Get selected microphone name
+  const getSelectedMicName = () => {
+    const selectedDevice = audioDevices.find(device => device.deviceId === selectedMicId)
+    return selectedDevice?.label || 'Default Microphone'
   }
 
   const isConnected = connectionStatus === 'connected'
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-sans text-sm relative overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-sans text-sm relative overflow-hidden">
       {/* Sophisticated Background */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.1),transparent_50%)]"></div>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.08),transparent_50%)]"></div>
@@ -364,81 +372,40 @@ export function LiveKitInjectedApp() {
               </div>
             )}
             
-            {/* Compact Microphone Selector - Always visible when devices available */}
+            {/* Microphone Selector - Always visible when devices available */}
             {audioDevices.length > 0 && (
-              <div className="flex items-center gap-2 mb-2">
-                <Mic className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                <select
-                  value={selectedMicId}
-                  onChange={(e) => changeMicrophoneDevice(e.target.value)}
-                  className="flex-1 px-2 py-1 border border-white/20 rounded-md text-xs bg-white/10 backdrop-blur-sm text-white focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-300 font-medium"
+              <div className="mb-2">
+                <div className="text-xs text-slate-400 font-medium mb-1">Microphone</div>
+                <button
+                  onClick={() => setShowMicModal(true)}
+                  className="group flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg transition-all duration-300 hover:shadow-lg w-full"
+                  title="Select microphone device"
                 >
-                  {audioDevices.map((device) => (
-                    <option 
-                      key={device.deviceId} 
-                      value={device.deviceId}
-                      className="bg-slate-800 text-white"
-                    >
-                      {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
-                    </option>
-                  ))}
-                </select>
+                  <Mic className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <span className="text-sm text-white truncate flex-1 text-left">
+                    {getSelectedMicName()}
+                  </span>
+                  <Settings className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:rotate-90 transition-all duration-300 flex-shrink-0" />
+                </button>
               </div>
             )}
+
             
-            {/* Compact Action Controls */}
-            <div className="flex gap-2 mb-2">
-              {!permissionsGranted && (
+            {/* Compact Action Controls - Only Permissions */}
+            {!permissionsGranted && (
+              <div className="mb-2">
                 <button
                   onClick={requestPermissions}
-                  className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-blue-500/20 flex-1"
+                  className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-blue-500/20 w-full"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <div className="relative flex items-center justify-center gap-1.5">
                     <Settings className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" />
-                    <span className="text-xs">Permissions</span>
+                    <span className="text-xs">Grant Permissions</span>
                   </div>
                 </button>
-              )}
-              
-              {!sessionStarted ? (
-                <button
-                  onClick={startSession}
-                  disabled={connectionStatus === 'connecting'}
-                  className={`group relative overflow-hidden px-3 py-2 rounded-lg transition-all duration-300 font-medium border text-xs ${permissionsGranted ? 'w-full' : 'flex-1'} ${
-                    connectionStatus === 'connecting'
-                      ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed shadow-lg border-slate-600/30'
-                      : 'bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border-emerald-500/20'
-                  }`}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="relative flex items-center justify-center gap-1.5">
-                    {connectionStatus === 'connecting' ? (
-                      <>
-                        <Loader className="w-3 h-3 animate-spin" />
-                        <span>Connecting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Phone className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                        <span>Start</span>
-                      </>
-                    )}
-                  </div>
-                </button>
-              ) : (
-                <button
-                  onClick={endSession}
-                  className="group relative overflow-hidden bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-red-500/20 w-full"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="relative flex items-center justify-center gap-1.5">
-                    <PhoneOff className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="text-xs">End</span>
-                  </div>
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -447,7 +414,10 @@ export function LiveKitInjectedApp() {
           {sessionStarted && isConnected ? (
             <div className="h-full flex flex-col">
               <InjectedVideoArea />
-              <InjectedMediaControls />
+              <InjectedMediaControls 
+                audioDevices={audioDevices}
+                setShowMicModal={setShowMicModal}
+              />
               <InjectedAgentStatus />
             </div>
           ) : (
@@ -480,8 +450,115 @@ export function LiveKitInjectedApp() {
             </div>
           )}
         </div>
+
+        {/* Bottom Action Bar - Start/End Session */}
+        <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border-t border-white/10 shadow-2xl">
+          <div className="px-4 py-3">
+            {!sessionStarted ? (
+              <button
+                onClick={startSession}
+                disabled={connectionStatus === 'connecting'}
+                className={`group relative overflow-hidden px-4 py-3 rounded-xl transition-all duration-300 font-semibold border text-sm w-full ${
+                  connectionStatus === 'connecting'
+                    ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed shadow-lg border-slate-600/30'
+                    : 'bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] border-emerald-500/20'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center justify-center gap-2">
+                  {connectionStatus === 'connecting' ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      <span>Connecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                      <span>Start Session</span>
+                    </>
+                  )}
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={endSession}
+                className="group relative overflow-hidden bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white px-4 py-3 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] font-semibold border border-red-500/20 w-full"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center justify-center gap-2">
+                  <PhoneOff className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                  <span className="text-sm">End Session</span>
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
         </RoomContext.Provider>
       </div>
+      
+      {/* Microphone Selection Modal */}
+      {showMicModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-white/10 shadow-2xl max-w-sm w-full mx-4">
+            <div className="p-4">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <Mic className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-white font-semibold text-base">Select Microphone</h3>
+                </div>
+                <button
+                  onClick={() => setShowMicModal(false)}
+                  className="w-6 h-6 bg-slate-600/50 hover:bg-slate-500 rounded-lg flex items-center justify-center transition-colors duration-200"
+                >
+                  <span className="text-white text-sm">×</span>
+                </button>
+              </div>
+              
+              {/* Device List */}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {audioDevices.map((device) => (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => changeMicrophoneDevice(device.deviceId)}
+                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 ${
+                      selectedMicId === device.deviceId
+                        ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                        : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        selectedMicId === device.deviceId ? 'bg-blue-400' : 'bg-slate-500'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
+                        </div>
+                        {selectedMicId === device.deviceId && (
+                          <div className="text-xs text-blue-400 mt-1">Currently selected</div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="mt-4 pt-3 border-t border-white/10">
+                <button
+                  onClick={() => setShowMicModal(false)}
+                  className="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -521,12 +598,14 @@ function InjectedVideoArea() {
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/5"></div>
-              <div className="relative z-10 text-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-xl mb-3">
-                  <Bot className="w-7 h-7 text-white" />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl mb-4">
+                  <Bot className="w-8 h-8 text-white" />
                 </div>
-                <div className="text-base font-bold text-white mb-1">AI Agent</div>
-                <div className="text-xs text-blue-400 capitalize font-medium px-2 py-1 bg-blue-500/20 rounded-full">{agentState}</div>
+                <div className="text-lg font-bold text-white mb-2">AI Agent</div>
+                <div className="text-sm text-blue-400 capitalize font-medium px-3 py-1.5 bg-blue-500/20 rounded-full border border-blue-500/30">
+                  {agentState}
+                </div>
               </div>
             </div>
           )}
@@ -557,15 +636,14 @@ function InjectedVideoArea() {
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/5"></div>
-              <div className="relative z-10 text-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-xl mb-3 border border-white/10">
-                  <User className="w-7 h-7 text-slate-300" />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center shadow-xl mb-4 border border-white/10">
+                  <User className="w-8 h-8 text-slate-300" />
                 </div>
-                <div className="text-base font-bold text-white mb-1">You</div>
-                <div className="text-xs text-slate-400 text-center max-w-32 leading-relaxed">
-                  <span className="text-emerald-400 font-medium">Audio Only</span>
-                  <br />
-                  <span className="text-slate-500 text-xs">Use controls below</span>
+                <div className="text-lg font-bold text-white mb-2">You</div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-sm text-emerald-400 font-medium">Audio Only</span>
+                  <span className="text-xs text-slate-400">Use controls below</span>
                 </div>
               </div>
             </div>
@@ -579,7 +657,13 @@ function InjectedVideoArea() {
   )
 }
 
-function InjectedMediaControls() {
+function InjectedMediaControls({ 
+  audioDevices, 
+  setShowMicModal 
+}: { 
+  audioDevices: MediaDeviceInfo[], 
+  setShowMicModal: (show: boolean) => void 
+}) {
   const micTrack = useTracks([Track.Source.Microphone])[0]
   const cameraTrack = useTracks([Track.Source.Camera])[0]
   const screenTrack = useTracks([Track.Source.ScreenShare])[0]
@@ -626,36 +710,41 @@ function InjectedMediaControls() {
   }
 
   return (
-    <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border-t border-white/10 shadow-2xl">
-      <div className="px-4 py-3">
-        {/* Professional Media Controls */}
-        <div className="flex items-center justify-center gap-4">
+    <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border-t border-white/10">
+      <div className="px-4 py-4">
+        {/* Media Controls */}
+        <div className="flex items-center justify-center gap-8">
           {/* Microphone Control */}
-          <div className="flex flex-col items-center gap-1">
-            <TrackToggle
-              source={Track.Source.Microphone}
-              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+          <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => audioDevices.length > 0 ? setShowMicModal(true) : undefined}
+              className={`relative group p-4 rounded-2xl transition-all duration-300 shadow-xl border ${
                 isMicMuted 
                   ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-red-500/30 shadow-red-600/25' 
                   : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-emerald-500/30 shadow-emerald-600/25'
               } hover:scale-110 active:scale-95`}
+              title={audioDevices.length > 0 ? "Click to toggle mute or long-press for settings" : "Microphone"}
             >
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative">
-                {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isMicMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </div>
-            </TrackToggle>
-            <span className="text-xs text-slate-300 font-medium">
-              {isMicMuted ? 'Muted' : 'Active'}
+              <TrackToggle
+                source={Track.Source.Microphone}
+                className="absolute inset-0 opacity-0"
+              />
+            </button>
+            <span className="text-xs text-slate-300 font-medium text-center">
+              Active
             </span>
           </div>
           
           {/* Camera Control */}
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-2">
             <button
               onClick={toggleCamera}
               disabled={isScreenSharing}
-              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+              className={`relative group p-4 rounded-2xl transition-all duration-300 shadow-xl border ${
                 isScreenSharing 
                   ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed border-slate-600/30 shadow-lg' 
                   : isCameraEnabled 
@@ -664,22 +753,22 @@ function InjectedMediaControls() {
               }`}
               title={isScreenSharing ? 'Stop screen sharing to use camera' : isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
             >
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative">
-                {isCameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                {isCameraEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
               </div>
             </button>
-            <span className="text-xs text-slate-300 font-medium">
-              {isScreenSharing ? 'Disabled' : isCameraEnabled ? 'Camera' : 'Camera'}
+            <span className="text-xs text-slate-300 font-medium text-center">
+              Camera
             </span>
           </div>
 
           {/* Screen Share Control */}
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-2">
             <button
               onClick={toggleScreenShare}
               disabled={isCameraEnabled}
-              className={`relative group p-3 rounded-xl transition-all duration-300 shadow-lg border ${
+              className={`relative group p-4 rounded-2xl transition-all duration-300 shadow-xl border ${
                 isCameraEnabled 
                   ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed border-slate-600/30 shadow-lg' 
                   : isScreenSharing 
@@ -688,29 +777,14 @@ function InjectedMediaControls() {
               }`}
               title={isCameraEnabled ? 'Turn off camera to share screen' : isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
             >
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative">
-                {isScreenSharing ? <Monitor className="w-5 h-5" /> : <MonitorOff className="w-5 h-5" />}
+                {isScreenSharing ? <Monitor className="w-6 h-6" /> : <MonitorOff className="w-6 h-6" />}
               </div>
             </button>
-            <span className="text-xs text-slate-300 font-medium">
-              {isCameraEnabled ? 'Disabled' : isScreenSharing ? 'Sharing' : 'Screen'}
+            <span className="text-xs text-slate-300 font-medium text-center">
+              Screen
             </span>
-          </div>
-        </div>
-        
-        {/* Status Information */}
-        <div className="text-center mt-3">
-          <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-1">
-            <div className={`w-2 h-2 rounded-full ${
-              (isCameraEnabled || isScreenSharing) ? 'bg-emerald-400' : 'bg-blue-400'
-            } animate-pulse`}></div>
-            <p className="text-xs text-slate-300 font-medium">
-              {(isCameraEnabled || isScreenSharing) 
-                ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active • Switch modes above`
-                : 'Audio mode • Enable camera or screen sharing for video'
-              }
-            </p>
           </div>
         </div>
       </div>
@@ -739,50 +813,6 @@ function InjectedAgentStatus() {
   return (
     <div className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl border-t border-white/10">
       <div className="px-4 py-3">
-        {/* Professional Agent Status */}
-        <div className={`flex items-center justify-between p-3 rounded-xl border backdrop-blur-sm transition-all duration-300 mb-3 ${
-          agentState === 'listening' ? 'bg-emerald-500/10 border-emerald-500/30 shadow-lg shadow-emerald-500/10' :
-          agentState === 'thinking' ? 'bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/10' :
-          agentState === 'speaking' ? 'bg-purple-500/10 border-purple-500/30 shadow-lg shadow-purple-500/10' :
-          'bg-white/5 border-white/10 shadow-lg'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              agentState === 'listening' ? 'bg-emerald-500/20' :
-              agentState === 'thinking' ? 'bg-blue-500/20' :
-              agentState === 'speaking' ? 'bg-purple-500/20' :
-              'bg-white/10'
-            }`}>
-              {getAgentStatusIcon(agentState)}
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm mb-0.5">AI Agent</div>
-              <div className={`text-xs capitalize font-semibold ${
-                agentState === 'listening' ? 'text-emerald-400' :
-                agentState === 'thinking' ? 'text-blue-400' :
-                agentState === 'speaking' ? 'text-purple-400' :
-                'text-slate-400'
-              }`}>
-                {agentState}
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-slate-400 font-medium mb-0.5">Status</div>
-            <div className={`text-xs font-bold ${
-              agentState === 'listening' ? 'text-emerald-400' :
-              agentState === 'thinking' ? 'text-blue-400' :
-              agentState === 'speaking' ? 'text-purple-400' :
-              'text-slate-400'
-            }`}>
-              {agentState === 'listening' ? '🎤 Ready' :
-               agentState === 'thinking' ? '🧠 Processing' :
-               agentState === 'speaking' ? '🔊 Responding' :
-               '⏳ Initializing'}
-            </div>
-          </div>
-        </div>
-        
         {/* Session Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Participants Card */}
