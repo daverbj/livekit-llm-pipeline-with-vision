@@ -10,13 +10,13 @@
     "package": "plasmo package"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.9",
+    "jose": "^6.0.12",
+    "livekit-client": "^2.13.3",
+    "lucide-react": "^0.542.0",
     "plasmo": "0.90.5",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "tailwindcss": "3.4.1",
-    "@livekit/components-react": "^2.9.9",
-    "livekit-client": "^2.13.3",
-    "jose": "^6.0.12"
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "4.1.1",
@@ -24,8 +24,10 @@
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
+    "autoprefixer": "^10.4.21",
     "postcss": "8.4.33",
     "prettier": "3.2.4",
+    "tailwindcss": "3",
     "typescript": "5.3.3"
   },
   "manifest": {

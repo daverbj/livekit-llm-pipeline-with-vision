@@ -74,46 +74,42 @@ function showMiniButton() {
     position: fixed;
     bottom: ${position.bottom}px;
     right: ${position.right}px;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: move;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     z-index: 999999;
     user-select: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border: 2px solid rgba(255, 255, 255, 0.2);
   `;
 
   miniButton.innerHTML = `
-    <div style="
-      color: white; 
-      font-size: 12px; 
-      font-weight: 600; 
-      text-align: center;
-      line-height: 1.2;
-    ">
-      <div style="font-size: 16px; margin-bottom: 2px;">🎭</div>
-      <div>JMimi</div>
-    </div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: white;">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
   `;
 
   // Add hover effects
   miniButton.addEventListener('mouseenter', () => {
     if (!isDragging) {
-      miniButton.style.transform = 'scale(1.1)';
-      miniButton.style.boxShadow = '0 6px 25px rgba(0, 0, 0, 0.2)';
+      miniButton.style.transform = 'scale(1.05)';
+      miniButton.style.boxShadow = '0 20px 40px -10px rgba(59, 130, 246, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
     }
   });
 
   miniButton.addEventListener('mouseleave', () => {
     if (!isDragging) {
       miniButton.style.transform = 'scale(1)';
-      miniButton.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
+      miniButton.style.boxShadow = '0 10px 25px -5px rgba(59, 130, 246, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
     }
   });
 
@@ -152,43 +148,86 @@ function showMainUI() {
     position: fixed;
     top: 20px;
     right: 20px;
-    width: 400px;
-    height: 600px;
+    width: 420px;
+    height: 650px;
     background: white;
-    border: 2px solid #667eea;
-    border-radius: 16px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
     resize: both;
-    min-width: 350px;
-    min-height: 400px;
+    min-width: 380px;
+    min-height: 500px;
+    max-width: 600px;
+    max-height: 800px;
     transform: translateX(450px);
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    backdrop-filter: blur(10px);
   `;
 
-  // Add drag handle (not draggable, just for styling)
+  // Add drag handle with modern design
   const dragHandle = document.createElement('div');
   dragHandle.style.cssText = `
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
     color: white;
-    padding: 12px 16px;
+    padding: 16px 20px;
     user-select: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
+    border-radius: 20px 20px 0 0;
   `;
+  
   dragHandle.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <span style="font-size: 16px;">🎙️</span>
-      <span>JMimi - LiveKit</span>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: white;">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>JMimi AI Assistant</span>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button id="minimize-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;" title="Minimize">−</button>
-      <button id="close-jmimi" style="background: #ef4444; border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;" title="End Session">×</button>
+      <button id="minimize-jmimi" style="
+        background: rgba(255,255,255,0.15); 
+        border: none; 
+        color: white; 
+        cursor: pointer; 
+        width: 32px;
+        height: 32px;
+        border-radius: 8px; 
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 300;
+      " title="Minimize">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button id="close-jmimi" style="
+        background: rgba(239, 68, 68, 0.9); 
+        border: none; 
+        color: white; 
+        cursor: pointer; 
+        width: 32px;
+        height: 32px;
+        border-radius: 8px; 
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      " title="End Session">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
   `;
 
@@ -196,8 +235,9 @@ function showMainUI() {
   const appContainer = document.createElement('div');
   appContainer.id = 'livekit-app-container';
   appContainer.style.cssText = `
-    height: calc(100% - 52px);
+    height: calc(100% - 64px);
     overflow: hidden;
+    background: #f8fafc;
   `;
 
   injectedUI.appendChild(dragHandle);
@@ -224,10 +264,20 @@ function showMainUI() {
   [minimizeBtn, closeBtn].forEach(btn => {
     if (btn) {
       btn.addEventListener('mouseenter', () => {
-        (btn as HTMLElement).style.background = 'rgba(255,255,255,0.3)';
+        if (btn === minimizeBtn) {
+          (btn as HTMLElement).style.background = 'rgba(255,255,255,0.25)';
+        } else {
+          (btn as HTMLElement).style.background = 'rgba(239, 68, 68, 1)';
+          (btn as HTMLElement).style.transform = 'scale(1.05)';
+        }
       });
       btn.addEventListener('mouseleave', () => {
-        (btn as HTMLElement).style.background = 'rgba(255,255,255,0.2)';
+        if (btn === minimizeBtn) {
+          (btn as HTMLElement).style.background = 'rgba(255,255,255,0.15)';
+        } else {
+          (btn as HTMLElement).style.background = 'rgba(239, 68, 68, 0.9)';
+          (btn as HTMLElement).style.transform = 'scale(1)';
+        }
       });
     }
   });

@@ -14,6 +14,25 @@ import {
   useLocalParticipant,
   type TrackReference,
 } from '@livekit/components-react'
+import { 
+  Mic, 
+  MicOff, 
+  Video, 
+  VideoOff, 
+  Monitor, 
+  MonitorOff, 
+  Phone, 
+  PhoneOff, 
+  Settings, 
+  Wifi,
+  WifiOff,
+  Loader,
+  User,
+  Bot,
+  AlertCircle,
+  CheckCircle,
+  Volume2
+} from 'lucide-react'
 import { generateLiveKitToken } from '../utils/tokenUtils'
 
 export function LiveKitInjectedApp() {
@@ -238,6 +257,7 @@ export function LiveKitInjectedApp() {
       height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
+      background: '#f8fafc',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       fontSize: '14px'
     }}>
@@ -245,17 +265,18 @@ export function LiveKitInjectedApp() {
         <RoomAudioRenderer />
         <StartAudio label="Start Audio" />
         
-        {/* Header */}
-        <div style={{ 
-          padding: '12px', 
-          borderBottom: '1px solid #e5e7eb', 
-          background: '#f9fafb' 
+        {/* Header Section - Microphone Selection */}
+        <div style={{
+          background: 'white',
+          borderBottom: '1px solid #e2e8f0',
+          padding: '16px',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '8px'
+            marginBottom: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{
@@ -264,127 +285,255 @@ export function LiveKitInjectedApp() {
                 borderRadius: '50%',
                 background: connectionStatus === 'connected' ? '#10b981' :
                            connectionStatus === 'connecting' ? '#f59e0b' :
-                           connectionStatus === 'error' ? '#ef4444' : '#6b7280'
+                           connectionStatus === 'error' ? '#ef4444' : '#9ca3af'
               }} />
-              <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>
+              <span style={{ 
+                fontWeight: 500, 
+                color: '#374151',
+                textTransform: 'capitalize'
+              }}>
                 {connectionStatus}
               </span>
+              {connectionStatus === 'connecting' && (
+                <Loader style={{ width: '16px', height: '16px', color: '#3b82f6' }} className="animate-spin" />
+              )}
+              {connectionStatus === 'connected' && (
+                <Wifi style={{ width: '16px', height: '16px', color: '#10b981' }} />
+              )}
+              {connectionStatus === 'error' && (
+                <WifiOff style={{ width: '16px', height: '16px', color: '#ef4444' }} />
+              )}
             </div>
           </div>
           
           {/* Error Message */}
           {errorMessage && (
-            <div style={{ 
-              padding: '8px', 
-              background: errorMessage.includes('granted') ? '#dcfce7' : '#fee2e2',
+            <div style={{
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '12px',
+              fontSize: '13px',
+              background: errorMessage.includes('granted') ? '#f0fdf4' : '#fef2f2',
               color: errorMessage.includes('granted') ? '#166534' : '#991b1b',
-              borderRadius: '6px', 
-              fontSize: '12px',
-              marginBottom: '8px'
+              border: `1px solid ${errorMessage.includes('granted') ? '#bbf7d0' : '#fecaca'}`
             }}>
-              {errorMessage}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {errorMessage.includes('granted') ? (
+                  <CheckCircle style={{ width: '16px', height: '16px' }} />
+                ) : (
+                  <AlertCircle style={{ width: '16px', height: '16px' }} />
+                )}
+                <span>{errorMessage}</span>
+              </div>
             </div>
           )}
           
           {/* Controls */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              onClick={requestPermissions}
-              style={{
-                background: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              📱 Permissions
-            </button>
-            
-            {/* Microphone Selection */}
-            {audioDevices.length > 0 && (
-              <select
-                value={selectedMicId}
-                onChange={(e) => changeMicrophoneDevice(e.target.value)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={requestPermissions}
                 style={{
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '12px',
-                  background: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500,
                   cursor: 'pointer',
-                  maxWidth: '150px'
+                  transition: 'background-color 0.2s'
                 }}
-                title="Select microphone device"
+                onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = '#1d4ed8'}
+                onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = '#2563eb'}
               >
-                {audioDevices.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    🎤 {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
-                  </option>
-                ))}
-              </select>
-            )}
+                <Settings style={{ width: '16px', height: '16px' }} />
+                Grant Permissions
+              </button>
+              
+              {!sessionStarted ? (
+                <button
+                  onClick={startSession}
+                  disabled={connectionStatus === 'connecting'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: connectionStatus === 'connecting' ? '#9ca3af' : '#059669',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: connectionStatus === 'connecting' ? 'not-allowed' : 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (connectionStatus !== 'connecting') {
+                      (e.target as HTMLButtonElement).style.background = '#047857'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (connectionStatus !== 'connecting') {
+                      (e.target as HTMLButtonElement).style.background = '#059669'
+                    }
+                  }}
+                >
+                  {connectionStatus === 'connecting' ? (
+                    <>
+                      <Loader style={{ width: '16px', height: '16px' }} className="animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Phone style={{ width: '16px', height: '16px' }} />
+                      Start Session
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={endSession}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = '#b91c1c'}
+                  onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = '#dc2626'}
+                >
+                  <PhoneOff style={{ width: '16px', height: '16px' }} />
+                  End Session
+                </button>
+              )}
+            </div>
             
-            {!sessionStarted ? (
-              <button
-                onClick={startSession}
-                disabled={connectionStatus === 'connecting'}
-                style={{
-                  background: connectionStatus === 'connecting' ? '#9ca3af' : '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: connectionStatus === 'connecting' ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {connectionStatus === 'connecting' ? 'Connecting...' : '🚀 Start Session'}
-              </button>
-            ) : (
-              <button
-                onClick={endSession}
-                style={{
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                🛑 End Session
-              </button>
+            {/* Microphone Selector */}
+            {audioDevices.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Mic style={{ width: '16px', height: '16px', color: '#6b7280' }} />
+                <select
+                  value={selectedMicId}
+                  onChange={(e) => changeMicrophoneDevice(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    background: 'white',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  {audioDevices.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content Area */}
         <div style={{ flex: 1, overflow: 'auto' }}>
-          {sessionStarted && isConnected && (
-            <>
+          {sessionStarted && isConnected ? (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <InjectedVideoArea />
               <InjectedMediaControls />
-              <InjectedChatArea />
-            </>
-          )}
-          
-          {!sessionStarted && (
+              <InjectedAgentStatus />
+            </div>
+          ) : (
             <div style={{ 
-              padding: '20px', 
-              textAlign: 'center',
-              color: '#6b7280'
+              height: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '32px'
             }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>🎙️</div>
-              <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>Welcome to JMimi</div>
-              <div style={{ fontSize: '14px', marginBottom: '16px' }}>Your AI Voice Assistant</div>
-              <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                1. Click "📱 Permissions" to grant access<br/>
-                2. Click "🚀 Start Session" to begin<br/>
-                3. Choose camera or screen sharing as needed
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  margin: '0 auto 16px',
+                  background: '#dbeafe',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Volume2 style={{ width: '32px', height: '32px', color: '#2563eb' }} />
+                </div>
+                <h3 style={{ 
+                  fontSize: '18px', 
+                  fontWeight: 600, 
+                  color: '#1f2937', 
+                  marginBottom: '8px' 
+                }}>
+                  Welcome to JMimi
+                </h3>
+                <p style={{ color: '#6b7280', marginBottom: '24px' }}>
+                  Your AI Voice Assistant
+                </p>
+                <div style={{ fontSize: '13px', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <span style={{
+                      width: '20px',
+                      height: '20px',
+                      background: '#2563eb',
+                      color: 'white',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px'
+                    }}>1</span>
+                    <span>Grant microphone and camera permissions</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <span style={{
+                      width: '20px',
+                      height: '20px',
+                      background: '#2563eb',
+                      color: 'white',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px'
+                    }}>2</span>
+                    <span>Select your preferred microphone</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <span style={{
+                      width: '20px',
+                      height: '20px',
+                      background: '#2563eb',
+                      color: 'white',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px'
+                    }}>3</span>
+                    <span>Start your voice session</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -417,83 +566,136 @@ function InjectedVideoArea() {
   const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted
   const isScreenSharing = screenTrack && !screenTrack.publication.isMuted
   const hasAgentVideo = agentVideoTrack !== undefined
-  const hasLocalVideo = isCameraEnabled || isScreenSharing
 
   return (
-    <div style={{ padding: '12px' }}>
-      <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>
-        Video Streams 
-        {isScreenSharing && ' (Screen Sharing)'}
-        {isCameraEnabled && ' (Camera)'}
-        {!hasLocalVideo && ' (Audio Only)'}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', height: '200px' }}>
+    <div style={{ flex: 1, padding: '16px' }}>
+      {/* Video Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '16px',
+        height: '256px',
+        marginBottom: '16px'
+      }}>
         {/* Agent Video */}
-        <div style={{ 
-          background: '#f3f4f6', 
-          borderRadius: '8px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          position: 'relative'
+        <div style={{
+          position: 'relative',
+          background: '#1f2937',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
         }}>
           {hasAgentVideo ? (
             <VideoTrack trackRef={agentVideoTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <div style={{ textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '20px' }}>🤖</div>
-              <div style={{ fontSize: '10px' }}>Agent ({agentState})</div>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <Bot style={{ width: '48px', height: '48px', marginBottom: '8px', color: '#60a5fa' }} />
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>AI Agent</div>
+              <div style={{
+                fontSize: '12px',
+                color: '#9ca3af',
+                textTransform: 'capitalize',
+                marginTop: '4px'
+              }}>
+                {agentState}
+              </div>
             </div>
           )}
+          <div style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <Bot style={{ width: '12px', height: '12px' }} />
+            Agent
+          </div>
         </div>
         
-        {/* Local Video or Placeholder */}
-        <div style={{ 
-          background: '#f3f4f6', 
-          borderRadius: '8px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          position: 'relative'
+        {/* Local Video */}
+        <div style={{
+          position: 'relative',
+          background: '#1f2937',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
         }}>
           {isScreenSharing ? (
             <>
               <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              <div style={{ 
-                position: 'absolute', 
-                top: '4px', 
-                left: '4px', 
-                background: 'rgba(0,0,0,0.7)', 
-                color: 'white', 
-                padding: '2px 6px', 
-                borderRadius: '4px', 
-                fontSize: '10px' 
+              <div style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '12px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
               }}>
-                🖥️ Screen
+                <Monitor style={{ width: '12px', height: '12px' }} />
+                Screen
               </div>
             </>
           ) : isCameraEnabled ? (
             <>
               <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <div style={{ 
-                position: 'absolute', 
-                top: '4px', 
-                left: '4px', 
-                background: 'rgba(0,0,0,0.7)', 
-                color: 'white', 
-                padding: '2px 6px', 
-                borderRadius: '4px', 
-                fontSize: '10px' 
+              <div style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '12px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
               }}>
-                📹 Camera
+                <Video style={{ width: '12px', height: '12px' }} />
+                Camera
               </div>
             </>
           ) : (
-            <div style={{ textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '20px' }}>🔇</div>
-              <div style={{ fontSize: '10px' }}>Audio Only</div>
-              <div style={{ fontSize: '9px', marginTop: '4px', color: '#9ca3af' }}>
-                Use buttons below to share camera or screen
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <User style={{ width: '48px', height: '48px', marginBottom: '8px', color: '#9ca3af' }} />
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>You</div>
+              <div style={{
+                fontSize: '12px',
+                color: '#9ca3af',
+                textAlign: 'center',
+                marginTop: '4px'
+              }}>
+                Audio Only
+                <br />
+                <span style={{ color: '#6b7280' }}>Use controls below to share video</span>
               </div>
             </div>
           )}
@@ -516,16 +718,13 @@ function InjectedMediaControls() {
   const toggleCamera = async () => {
     try {
       if (isCameraEnabled) {
-        // Turn off camera
         await localParticipant.setCameraEnabled(false)
         console.log('✅ Camera disabled')
       } else {
-        // Turn off screen share first if it's active
         if (isScreenSharing) {
           await localParticipant.setScreenShareEnabled(false)
           console.log('✅ Screen sharing stopped to enable camera')
         }
-        // Turn on camera
         await localParticipant.setCameraEnabled(true)
         console.log('✅ Camera enabled')
       }
@@ -537,16 +736,13 @@ function InjectedMediaControls() {
   const toggleScreenShare = async () => {
     try {
       if (isScreenSharing) {
-        // Stop screen sharing
         await localParticipant.setScreenShareEnabled(false)
         console.log('✅ Screen sharing stopped')
       } else {
-        // Turn off camera first if it's active
         if (isCameraEnabled) {
           await localParticipant.setCameraEnabled(false)
           console.log('✅ Camera stopped to enable screen sharing')
         }
-        // Start screen sharing
         await localParticipant.setScreenShareEnabled(true)
         console.log('✅ Screen sharing started')
       }
@@ -556,75 +752,117 @@ function InjectedMediaControls() {
   }
 
   return (
-    <div style={{ 
-      padding: '12px', 
-      borderTop: '1px solid #e5e7eb',
-      borderBottom: '1px solid #e5e7eb'
+    <div style={{
+      background: 'white',
+      borderTop: '1px solid #e2e8f0',
+      padding: '16px'
     }}>
-      <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>Media Controls</div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Media Controls Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '12px'
+      }}>
+        {/* Microphone */}
         <TrackToggle
           source={Track.Source.Microphone}
           style={{
-            padding: '8px 12px',
-            borderRadius: '6px',
+            padding: '12px',
+            borderRadius: '50%',
             border: 'none',
-            background: isMicMuted ? '#ef4444' : '#10b981',
+            background: isMicMuted ? '#dc2626' : '#059669',
             color: 'white',
-            fontSize: '12px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
-          {isMicMuted ? '🔇 Mic Off' : '🎤 Mic On'}
+          {isMicMuted ? <MicOff style={{ width: '20px', height: '20px' }} /> : <Mic style={{ width: '20px', height: '20px' }} />}
         </TrackToggle>
         
+        {/* Camera */}
         <button
           onClick={toggleCamera}
           disabled={isScreenSharing}
           style={{
-            padding: '8px 12px',
-            borderRadius: '6px',
+            padding: '12px',
+            borderRadius: '50%',
             border: 'none',
-            background: isScreenSharing ? '#9ca3af' : (isCameraEnabled ? '#10b981' : '#6b7280'),
+            background: isScreenSharing ? '#d1d5db' : (isCameraEnabled ? '#2563eb' : '#6b7280'),
             color: 'white',
-            fontSize: '12px',
             cursor: isScreenSharing ? 'not-allowed' : 'pointer',
-            opacity: isScreenSharing ? 0.6 : 1
+            transition: 'all 0.2s',
+            boxShadow: isScreenSharing ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={isScreenSharing ? 'Stop screen sharing to use camera' : isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+          onMouseEnter={(e) => {
+            if (!isScreenSharing) {
+              (e.target as HTMLButtonElement).style.transform = 'scale(1.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isScreenSharing) {
+              (e.target as HTMLButtonElement).style.transform = 'scale(1)';
+            }
           }}
         >
-          {isCameraEnabled ? '� Cam On' : '� Camera'}
+          {isCameraEnabled ? <Video style={{ width: '20px', height: '20px' }} /> : <VideoOff style={{ width: '20px', height: '20px' }} />}
         </button>
 
+        {/* Screen Share */}
         <button
           onClick={toggleScreenShare}
           disabled={isCameraEnabled}
           style={{
-            padding: '8px 12px',
-            borderRadius: '6px',
+            padding: '12px',
+            borderRadius: '50%',
             border: 'none',
-            background: isCameraEnabled ? '#9ca3af' : (isScreenSharing ? '#10b981' : '#6b7280'),
+            background: isCameraEnabled ? '#d1d5db' : (isScreenSharing ? '#7c3aed' : '#6b7280'),
             color: 'white',
-            fontSize: '12px',
             cursor: isCameraEnabled ? 'not-allowed' : 'pointer',
-            opacity: isCameraEnabled ? 0.6 : 1
+            transition: 'all 0.2s',
+            boxShadow: isCameraEnabled ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={isCameraEnabled ? 'Turn off camera to share screen' : isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
+          onMouseEnter={(e) => {
+            if (!isCameraEnabled) {
+              (e.target as HTMLButtonElement).style.transform = 'scale(1.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isCameraEnabled) {
+              (e.target as HTMLButtonElement).style.transform = 'scale(1)';
+            }
           }}
         >
-          {isScreenSharing ? '🖥️ Stop Share' : '📱 Share Screen'}
+          {isScreenSharing ? <Monitor style={{ width: '20px', height: '20px' }} /> : <MonitorOff style={{ width: '20px', height: '20px' }} />}
         </button>
       </div>
       
-      {/* Helper text */}
-      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
-        {(isCameraEnabled || isScreenSharing) 
-          ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active. Turn off to use the other option.`
-          : 'Choose camera or screen sharing (not both). Change microphone in header controls.'
-        }
+      {/* Status Text */}
+      <div style={{ textAlign: 'center', marginTop: '12px' }}>
+        <p style={{ fontSize: '12px', color: '#6b7280' }}>
+          {(isCameraEnabled || isScreenSharing) 
+            ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active • Turn off to use the other option`
+            : 'Audio only • Choose camera or screen sharing above'
+          }
+        </p>
       </div>
     </div>
   )
 }
 
-function InjectedChatArea() {
+function InjectedAgentStatus() {
   const participants = useRemoteParticipants()
   const { state: agentState } = useVoiceAssistant()
   const screenTrack = useTracks([Track.Source.ScreenShare])[0]
@@ -632,34 +870,138 @@ function InjectedChatArea() {
   const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
   const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
   
-  const getVideoModeStatus = () => {
-    if (isScreenSharing) return '🖥️ Screen Sharing Mode'
-    if (isCameraEnabled) return '📹 Camera Mode'
-    return '🔊 Audio Only Mode'
+  const getAgentStatusStyles = (state: string) => {
+    switch (state) {
+      case 'listening': 
+        return {
+          color: '#059669',
+          background: '#f0fdf4',
+          borderColor: '#bbf7d0'
+        }
+      case 'thinking': 
+        return {
+          color: '#2563eb',
+          background: '#eff6ff',
+          borderColor: '#bfdbfe'
+        }
+      case 'speaking': 
+        return {
+          color: '#7c3aed',
+          background: '#f5f3ff',
+          borderColor: '#c4b5fd'
+        }
+      default: 
+        return {
+          color: '#6b7280',
+          background: '#f9fafb',
+          borderColor: '#e5e7eb'
+        }
+    }
   }
   
+  const getAgentStatusIcon = (state: string) => {
+    switch (state) {
+      case 'listening': return <Mic style={{ width: '16px', height: '16px' }} />
+      case 'thinking': return <Loader style={{ width: '16px', height: '16px' }} className="animate-spin" />
+      case 'speaking': return <Volume2 style={{ width: '16px', height: '16px' }} />
+      default: return <Bot style={{ width: '16px', height: '16px' }} />
+    }
+  }
+
+  const statusStyles = getAgentStatusStyles(agentState)
+  
   return (
-    <div style={{ padding: '12px' }}>
-      <div style={{ fontSize: '12px', fontWeight: 500, marginBottom: '8px' }}>
-        Session Status
-      </div>
-      <div style={{ 
-        background: '#f9fafb', 
-        padding: '8px', 
-        borderRadius: '6px',
-        fontSize: '12px',
-        color: '#6b7280'
-      }}>
-        <div>Participants: {participants.length}</div>
-        <div>Agent State: {agentState}</div>
-        <div style={{ 
-          color: isScreenSharing ? '#10b981' : isCameraEnabled ? '#3b82f6' : '#6b7280', 
-          fontWeight: 500 
+    <div style={{
+      background: '#f8fafc',
+      borderTop: '1px solid #e2e8f0',
+      padding: '16px'
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Agent Status */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px',
+          borderRadius: '8px',
+          border: `1px solid ${statusStyles.borderColor}`,
+          background: statusStyles.background,
+          color: statusStyles.color
         }}>
-          {getVideoModeStatus()}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {getAgentStatusIcon(agentState)}
+            <span style={{ fontWeight: 500, fontSize: '14px' }}>AI Agent</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <span style={{
+              fontSize: '14px',
+              textTransform: 'capitalize',
+              fontWeight: 500
+            }}>
+              {agentState}
+            </span>
+          </div>
         </div>
-        <div style={{ marginTop: '4px', fontSize: '10px' }}>
-          Full chat implementation coming soon...
+        
+        {/* Session Info */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '12px'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#6b7280',
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              <User style={{ width: '12px', height: '12px' }} />
+              <span>Participants</span>
+            </div>
+            <div style={{
+              fontWeight: 600,
+              fontSize: '18px',
+              color: '#1f2937'
+            }}>
+              {participants.length + 1}
+            </div>
+          </div>
+          
+          <div style={{
+            background: 'white',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#6b7280',
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              {isScreenSharing ? <Monitor style={{ width: '12px', height: '12px' }} /> : 
+               isCameraEnabled ? <Video style={{ width: '12px', height: '12px' }} /> : 
+               <Volume2 style={{ width: '12px', height: '12px' }} />}
+              <span>Mode</span>
+            </div>
+            <div style={{
+              fontWeight: 600,
+              fontSize: '14px',
+              color: '#1f2937'
+            }}>
+              {isScreenSharing ? 'Screen' : isCameraEnabled ? 'Video' : 'Audio'}
+            </div>
+          </div>
         </div>
       </div>
     </div>
