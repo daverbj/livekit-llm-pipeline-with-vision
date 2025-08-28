@@ -59,11 +59,18 @@ export function LiveKitInjectedApp() {
       }
     }
 
+    // Listen for end session event from content script
+    const onEndSession = () => {
+      console.log('🛑 End session event received')
+      endSession()
+    }
+
     // Add all event listeners
     room.on(RoomEvent.Connected, onConnected)
     room.on(RoomEvent.Disconnected, onDisconnected)
     room.on(RoomEvent.MediaDevicesError, onMediaDevicesError)
     room.on(RoomEvent.ConnectionStateChanged, onConnectionStateChanged)
+    document.addEventListener('jmimi-end-session', onEndSession)
 
     return () => {
       console.log('🧹 Cleaning up room event handlers in injected context')
@@ -71,6 +78,7 @@ export function LiveKitInjectedApp() {
       room.off(RoomEvent.Disconnected, onDisconnected)
       room.off(RoomEvent.MediaDevicesError, onMediaDevicesError)
       room.off(RoomEvent.ConnectionStateChanged, onConnectionStateChanged)
+      document.removeEventListener('jmimi-end-session', onEndSession)
     }
   }, [room])
 

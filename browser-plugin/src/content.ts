@@ -11,6 +11,7 @@ let injectedUI: HTMLElement | null = null;
 let miniButton: HTMLElement | null = null;
 let isUIVisible = false;
 let isUIExpanded = false;
+let isDragging = false;
 
 // Initialize content script
 console.log('LiveKit content script loaded');
@@ -82,7 +83,12 @@ function showMiniButton() {
   };
 
   // Click handler to toggle main UI
-  miniButton.onclick = toggleMainUI;
+  miniButton.onclick = (e) => {
+    // Only toggle if it's a click, not the end of a drag
+    if (!isDragging) {
+      toggleMainUI();
+    }
+  };
 
   // Make draggable
   makeDraggable(miniButton, miniButton);
@@ -132,13 +138,12 @@ function showMainUI() {
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   `;
 
-  // Add drag handle
+  // Add drag handle (not draggable, just for styling)
   const dragHandle = document.createElement('div');
   dragHandle.style.cssText = `
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 12px 16px;
-    cursor: move;
     user-select: none;
     display: flex;
     justify-content: space-between;
@@ -152,8 +157,8 @@ function showMainUI() {
       <span>JMimi - LiveKit</span>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button id="minimize-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">−</button>
-      <button id="close-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">×</button>
+      <button id="minimize-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;" title="Minimize">−</button>
+      <button id="close-jmimi" style="background: #ef4444; border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;" title="End Session">×</button>
     </div>
   `;
 
@@ -169,8 +174,7 @@ function showMainUI() {
   injectedUI.appendChild(appContainer);
   document.body.appendChild(injectedUI);
 
-  // Make draggable
-  makeDraggable(injectedUI, dragHandle);
+  // Don't make the main panel draggable - only the mini button should be draggable
 
   // Button handlers
   const minimizeBtn = dragHandle.querySelector('#minimize-jmimi');
@@ -178,12 +182,12 @@ function showMainUI() {
   
   minimizeBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    hideMainUI();
+    hideMainUI(); // Just minimize/slide out
   });
   
   closeBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    hideMainUI();
+    endSession(); // End the LiveKit session completely
   });
 
   // Add hover effects to buttons
@@ -227,8 +231,24 @@ function hideMainUI() {
   }
 }
 
+function endSession() {
+  // Send message to React component to end session
+  const event = new CustomEvent('jmimi-end-session');
+  document.dispatchEvent(event);
+  
+  // Hide the main UI
+  hideMainUI();
+  
+  // Optionally hide the mini button too
+  // if (miniButton) {
+  //   miniButton.style.display = 'none';
+  //   isUIVisible = false;
+  // }
+}
+
 function makeDraggable(element: HTMLElement, handle: HTMLElement) {
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  let startX = 0, startY = 0;
   
   handle.onmousedown = dragMouseDown;
 
@@ -236,12 +256,24 @@ function makeDraggable(element: HTMLElement, handle: HTMLElement) {
     e.preventDefault();
     pos3 = e.clientX;
     pos4 = e.clientY;
+    startX = e.clientX;
+    startY = e.clientY;
+    isDragging = false;
+    
     document.onmouseup = closeDragElement;
     document.onmousemove = elementDrag;
   }
 
   function elementDrag(e: MouseEvent) {
     e.preventDefault();
+    
+    // Check if we've moved enough to consider this a drag
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    if (deltaX > 5 || deltaY > 5) {
+      isDragging = true;
+    }
+    
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
     pos3 = e.clientX;
@@ -260,6 +292,11 @@ function makeDraggable(element: HTMLElement, handle: HTMLElement) {
   function closeDragElement() {
     document.onmouseup = null;
     document.onmousemove = null;
+    
+    // Reset isDragging after a short delay to allow click handler to check it
+    setTimeout(() => {
+      isDragging = false;
+    }, 10);
   }
 }
 
