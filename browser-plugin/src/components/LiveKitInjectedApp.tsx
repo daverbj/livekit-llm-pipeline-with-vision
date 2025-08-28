@@ -25,6 +25,8 @@ export function LiveKitInjectedApp() {
   const [sessionStarted, setSessionStarted] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedMicId, setSelectedMicId] = useState<string>('')
 
   // Room event handlers
   useEffect(() => {
@@ -124,8 +126,16 @@ export function LiveKitInjectedApp() {
         if (room.state === 'connected') {
           console.log('🎤 Enabling microphone in injected context...')
           try {
+            // First enable microphone
             await room.localParticipant.setMicrophoneEnabled(true)
-            console.log('✅ Microphone enabled successfully')
+            
+            // Then switch to selected device if available
+            if (selectedMicId) {
+              console.log('🎤 Switching to selected microphone device:', selectedMicId)
+              await room.switchActiveDevice('audioinput', selectedMicId)
+            }
+            
+            console.log('✅ Microphone enabled successfully with device:', selectedMicId || 'default')
           } catch (micError) {
             console.error('⚠️ Microphone enable failed:', micError)
             setErrorMessage(`Microphone failed: ${micError.message}`)
@@ -151,6 +161,24 @@ export function LiveKitInjectedApp() {
     room.disconnect()
   }
 
+  // Enumerate audio devices
+  const enumerateAudioDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const audioInputs = devices.filter(device => device.kind === 'audioinput')
+      setAudioDevices(audioInputs)
+      
+      // Set default device if none selected
+      if (!selectedMicId && audioInputs.length > 0) {
+        setSelectedMicId(audioInputs[0].deviceId)
+      }
+      
+      console.log('🎤 Found audio devices:', audioInputs.map(d => d.label || d.deviceId))
+    } catch (error) {
+      console.error('❌ Failed to enumerate audio devices:', error)
+    }
+  }
+
   // Request media permissions
   const requestPermissions = async () => {
     try {
@@ -166,6 +194,9 @@ export function LiveKitInjectedApp() {
       console.log('✅ Camera permission granted')
       camStream.getTracks().forEach(track => track.stop())
       
+      // Enumerate devices after getting permissions
+      await enumerateAudioDevices()
+      
       // Note: Screen sharing permission is requested on-demand when user clicks "Share Screen"
       // This is because getDisplayMedia() must be called in response to user interaction
       
@@ -175,6 +206,21 @@ export function LiveKitInjectedApp() {
       console.error('❌ Media permission failed in injected context:', error)
       setErrorMessage(`Permission failed: ${error.message}`)
     }
+  }
+
+  // Change microphone device
+  const changeMicrophoneDevice = async (deviceId: string) => {
+    if (room.state === 'connected' && sessionStarted) {
+      try {
+        console.log('🎤 Changing microphone to device:', deviceId)
+        await room.switchActiveDevice('audioinput', deviceId)
+        console.log('✅ Microphone device changed successfully')
+      } catch (error) {
+        console.error('❌ Failed to change microphone device:', error)
+        setErrorMessage(`Failed to change microphone: ${error.message}`)
+      }
+    }
+    setSelectedMicId(deviceId)
   }
 
   const isConnected = connectionStatus === 'connected'
@@ -233,7 +279,7 @@ export function LiveKitInjectedApp() {
           )}
           
           {/* Controls */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={requestPermissions}
               style={{
@@ -248,6 +294,30 @@ export function LiveKitInjectedApp() {
             >
               📱 Permissions
             </button>
+            
+            {/* Microphone Selection */}
+            {audioDevices.length > 0 && (
+              <select
+                value={selectedMicId}
+                onChange={(e) => changeMicrophoneDevice(e.target.value)}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '12px',
+                  background: 'white',
+                  cursor: 'pointer',
+                  maxWidth: '150px'
+                }}
+                title="Select microphone device"
+              >
+                {audioDevices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    🎤 {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
+                  </option>
+                ))}
+              </select>
+            )}
             
             {!sessionStarted ? (
               <button
@@ -536,7 +606,7 @@ function InjectedMediaControls() {
       <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
         {(isCameraEnabled || isScreenSharing) 
           ? `${isCameraEnabled ? 'Camera' : 'Screen sharing'} active. Turn off to use the other option.`
-          : 'Choose camera or screen sharing (not both simultaneously)'
+          : 'Choose camera or screen sharing (not both). Change microphone in header controls.'
         }
       </div>
     </div>
