@@ -16,13 +16,28 @@ let isDragging = false;
 // Initialize content script
 console.log('LiveKit content script loaded');
 
+// Auto-initialize the mini button on page load
+initializeMiniButton();
+
+function initializeMiniButton() {
+  // Wait a bit for the page to load completely
+  setTimeout(() => {
+    showMiniButton();
+  }, 1500);
+}
+
 // Listen for messages from the extension
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Content script received message:', message);
   
   try {
     if (message.type === 'TOGGLE_LIVEKIT_UI') {
-      showMiniButton();
+      // If mini button doesn't exist, create it
+      if (!miniButton) {
+        showMiniButton();
+      }
+      // Toggle the main UI panel
+      toggleMainUI();
       sendResponse({ success: true, visible: isUIVisible });
       return true;
     }
@@ -40,58 +55,73 @@ function showMiniButton() {
     return;
   }
 
-  // Create the mini draggable button
+  // Get saved position or use defaults
+  const savedPosition = localStorage.getItem('jmimi-position');
+  let position = { bottom: 20, right: 20 };
+  
+  if (savedPosition) {
+    try {
+      position = JSON.parse(savedPosition);
+    } catch (e) {
+      console.log('Failed to parse saved position, using defaults');
+    }
+  }
+
+  // Create the mini floating button
   miniButton = document.createElement('div');
   miniButton.id = 'jmimi-mini-button';
   miniButton.style.cssText = `
     position: fixed;
-    top: 50%;
-    right: 20px;
+    bottom: ${position.bottom}px;
+    right: ${position.right}px;
     width: 60px;
     height: 60px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: 3px solid white;
     border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
-    z-index: 999998;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    cursor: move;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 999999;
     user-select: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    transform: translateY(-50%);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   `;
 
   miniButton.innerHTML = `
-    <div style="text-align: center; color: white;">
-      <div style="font-size: 16px; margin-bottom: 2px;">🎙️</div>
-      <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.5px;">JMimi</div>
+    <div style="
+      color: white; 
+      font-size: 12px; 
+      font-weight: 600; 
+      text-align: center;
+      line-height: 1.2;
+    ">
+      <div style="font-size: 16px; margin-bottom: 2px;">🎭</div>
+      <div>JMimi</div>
     </div>
   `;
 
   // Add hover effects
-  miniButton.onmouseenter = () => {
-    miniButton!.style.transform = 'translateY(-50%) scale(1.1)';
-    miniButton!.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15)';
-  };
-
-  miniButton.onmouseleave = () => {
-    miniButton!.style.transform = 'translateY(-50%) scale(1)';
-    miniButton!.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
-  };
-
-  // Click handler to toggle main UI
-  miniButton.onclick = (e) => {
-    // Only toggle if it's a click, not the end of a drag
+  miniButton.addEventListener('mouseenter', () => {
     if (!isDragging) {
-      toggleMainUI();
+      miniButton.style.transform = 'scale(1.1)';
+      miniButton.style.boxShadow = '0 6px 25px rgba(0, 0, 0, 0.2)';
     }
-  };
+  });
+
+  miniButton.addEventListener('mouseleave', () => {
+    if (!isDragging) {
+      miniButton.style.transform = 'scale(1)';
+      miniButton.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
+    }
+  });
+
+  // Add click handler to toggle main UI
+  // Removed - handled in drag function now
 
   // Make draggable
-  makeDraggable(miniButton, miniButton);
+  makeMiniButtonDraggable(miniButton);
 
   document.body.appendChild(miniButton);
   isUIVisible = true;
@@ -215,6 +245,76 @@ function showMainUI() {
   console.log('JMimi main UI created and sliding in');
 }
 
+function makeMiniButtonDraggable(element: HTMLElement) {
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  let startX = 0, startY = 0;
+  let hasMoved = false;
+  
+  element.onmousedown = dragMouseDown;
+
+  function dragMouseDown(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    startX = e.clientX;
+    startY = e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    hasMoved = false;
+    // Don't set isDragging yet - wait until we actually move
+    document.onmouseup = closeDragElement;
+    document.onmousemove = elementDrag;
+  }
+
+  function elementDrag(e: MouseEvent) {
+    e.preventDefault();
+    
+    // Calculate distance moved
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    
+    // Only start dragging if moved more than 5px
+    if (deltaX > 5 || deltaY > 5) {
+      hasMoved = true;
+      isDragging = true;
+      
+      pos1 = pos3 - e.clientX;
+      pos2 = pos4 - e.clientY;
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      
+      // Update position
+      element.style.top = (element.offsetTop - pos2) + "px";
+      element.style.left = (element.offsetLeft - pos1) + "px";
+      element.style.bottom = 'auto';
+      element.style.right = 'auto';
+    }
+  }
+
+  function closeDragElement() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+    
+    // If we moved, save position
+    if (hasMoved) {
+      const rect = element.getBoundingClientRect();
+      const position = {
+        bottom: window.innerHeight - rect.bottom,
+        right: window.innerWidth - rect.right
+      };
+      localStorage.setItem('jmimi-position', JSON.stringify(position));
+    } else {
+      // If we didn't move, it's a click - toggle the main UI
+      console.log('JMimi clicked - toggling main UI');
+      toggleMainUI();
+    }
+    
+    // Reset isDragging after a short delay
+    setTimeout(() => {
+      isDragging = false;
+    }, 100);
+  }
+}
+
 function hideMainUI() {
   if (injectedUI) {
     // Slide out to right
@@ -293,12 +393,19 @@ function makeDraggable(element: HTMLElement, handle: HTMLElement) {
     document.onmouseup = null;
     document.onmousemove = null;
     
+    // Save the new position to localStorage
+    if (miniButton) {
+      const rect = miniButton.getBoundingClientRect();
+      const position = {
+        bottom: window.innerHeight - rect.bottom,
+        right: window.innerWidth - rect.right
+      };
+      localStorage.setItem('jmimi-position', JSON.stringify(position));
+    }
+    
     // Reset isDragging after a short delay to allow click handler to check it
     setTimeout(() => {
       isDragging = false;
     }, 10);
   }
 }
-
-// Auto-inject UI when extension is loaded (optional)
-// showLiveKitUI();
