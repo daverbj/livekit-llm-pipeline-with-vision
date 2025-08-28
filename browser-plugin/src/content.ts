@@ -8,7 +8,9 @@ import { LiveKitInjectedApp } from './components/LiveKitInjectedApp'
 export {};
 
 let injectedUI: HTMLElement | null = null;
+let miniButton: HTMLElement | null = null;
 let isUIVisible = false;
+let isUIExpanded = false;
 
 // Initialize content script
 console.log('LiveKit content script loaded');
@@ -19,7 +21,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   try {
     if (message.type === 'TOGGLE_LIVEKIT_UI') {
-      toggleLiveKitUI();
+      showMiniButton();
       sendResponse({ success: true, visible: isUIVisible });
       return true;
     }
@@ -31,22 +33,83 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-function toggleLiveKitUI() {
-  if (isUIVisible) {
-    hideLiveKitUI();
-  } else {
-    showLiveKitUI();
-  }
-}
-
-function showLiveKitUI() {
-  if (injectedUI) {
-    injectedUI.style.display = 'block';
-    isUIVisible = true;
+function showMiniButton() {
+  if (miniButton) {
+    miniButton.style.display = 'block';
     return;
   }
 
-  // Create the injected UI container
+  // Create the mini draggable button
+  miniButton = document.createElement('div');
+  miniButton.id = 'jmimi-mini-button';
+  miniButton.style.cssText = `
+    position: fixed;
+    top: 50%;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 999998;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    user-select: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(-50%);
+  `;
+
+  miniButton.innerHTML = `
+    <div style="text-align: center; color: white;">
+      <div style="font-size: 16px; margin-bottom: 2px;">🎙️</div>
+      <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.5px;">JMimi</div>
+    </div>
+  `;
+
+  // Add hover effects
+  miniButton.onmouseenter = () => {
+    miniButton!.style.transform = 'translateY(-50%) scale(1.1)';
+    miniButton!.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15)';
+  };
+
+  miniButton.onmouseleave = () => {
+    miniButton!.style.transform = 'translateY(-50%) scale(1)';
+    miniButton!.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
+  };
+
+  // Click handler to toggle main UI
+  miniButton.onclick = toggleMainUI;
+
+  // Make draggable
+  makeDraggable(miniButton, miniButton);
+
+  document.body.appendChild(miniButton);
+  isUIVisible = true;
+  console.log('JMimi mini button created');
+}
+
+function toggleMainUI() {
+  if (isUIExpanded) {
+    hideMainUI();
+  } else {
+    showMainUI();
+  }
+}
+
+function showMainUI() {
+  if (injectedUI) {
+    // Slide in from right
+    injectedUI.style.display = 'block';
+    injectedUI.style.transform = 'translateX(0)';
+    isUIExpanded = true;
+    return;
+  }
+
+  // Create the main UI container
   injectedUI = document.createElement('div');
   injectedUI.id = 'livekit-injected-ui';
   injectedUI.style.cssText = `
@@ -56,23 +119,25 @@ function showLiveKitUI() {
     width: 400px;
     height: 600px;
     background: white;
-    border: 2px solid #3b82f6;
-    border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 2px solid #667eea;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
     resize: both;
     min-width: 350px;
     min-height: 400px;
+    transform: translateX(450px);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   `;
 
   // Add drag handle
   const dragHandle = document.createElement('div');
   dragHandle.style.cssText = `
-    background: #3b82f6;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 8px 12px;
+    padding: 12px 16px;
     cursor: move;
     user-select: none;
     display: flex;
@@ -82,15 +147,21 @@ function showLiveKitUI() {
     font-size: 14px;
   `;
   dragHandle.innerHTML = `
-    <span>🎙️ LiveKit</span>
-    <button id="close-livekit" style="background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px;">×</button>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 16px;">🎙️</span>
+      <span>JMimi - LiveKit</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button id="minimize-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">−</button>
+      <button id="close-jmimi" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">×</button>
+    </div>
   `;
 
   // Add React app container
   const appContainer = document.createElement('div');
   appContainer.id = 'livekit-app-container';
   appContainer.style.cssText = `
-    height: calc(100% - 40px);
+    height: calc(100% - 52px);
     overflow: hidden;
   `;
 
@@ -101,22 +172,58 @@ function showLiveKitUI() {
   // Make draggable
   makeDraggable(injectedUI, dragHandle);
 
-  // Close button handler
-  const closeBtn = dragHandle.querySelector('#close-livekit');
-  closeBtn?.addEventListener('click', hideLiveKitUI);
+  // Button handlers
+  const minimizeBtn = dragHandle.querySelector('#minimize-jmimi');
+  const closeBtn = dragHandle.querySelector('#close-jmimi');
+  
+  minimizeBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideMainUI();
+  });
+  
+  closeBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideMainUI();
+  });
+
+  // Add hover effects to buttons
+  [minimizeBtn, closeBtn].forEach(btn => {
+    if (btn) {
+      btn.addEventListener('mouseenter', () => {
+        (btn as HTMLElement).style.background = 'rgba(255,255,255,0.3)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        (btn as HTMLElement).style.background = 'rgba(255,255,255,0.2)';
+      });
+    }
+  });
 
   // Render React app
   const root = createRoot(appContainer);
   root.render(React.createElement(LiveKitInjectedApp));
 
-  isUIVisible = true;
-  console.log('LiveKit UI injected into page');
+  // Slide in animation
+  requestAnimationFrame(() => {
+    injectedUI!.style.transform = 'translateX(0)';
+  });
+
+  isUIExpanded = true;
+  console.log('JMimi main UI created and sliding in');
 }
 
-function hideLiveKitUI() {
+function hideMainUI() {
   if (injectedUI) {
-    injectedUI.style.display = 'none';
-    isUIVisible = false;
+    // Slide out to right
+    injectedUI.style.transform = 'translateX(450px)';
+    
+    // Hide after animation
+    setTimeout(() => {
+      if (injectedUI) {
+        injectedUI.style.display = 'none';
+      }
+    }, 400);
+    
+    isUIExpanded = false;
   }
 }
 
@@ -139,8 +246,15 @@ function makeDraggable(element: HTMLElement, handle: HTMLElement) {
     pos2 = pos4 - e.clientY;
     pos3 = e.clientX;
     pos4 = e.clientY;
-    element.style.top = (element.offsetTop - pos2) + "px";
-    element.style.left = (element.offsetLeft - pos1) + "px";
+    
+    // For mini button, maintain its transform
+    if (element === miniButton) {
+      element.style.top = (element.offsetTop - pos2) + "px";
+      element.style.left = (element.offsetLeft - pos1) + "px";
+    } else {
+      element.style.top = (element.offsetTop - pos2) + "px";
+      element.style.left = (element.offsetLeft - pos1) + "px";
+    }
   }
 
   function closeDragElement() {

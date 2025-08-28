@@ -370,10 +370,13 @@ export function LiveKitInjectedApp() {
               textAlign: 'center',
               color: '#6b7280'
             }}>
-              <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎙️</div>
-              <div>Click "Permissions" first, then "Start Session"</div>
-              <div style={{ fontSize: '12px', marginTop: '8px' }}>
-                Running in webpage context for better media access
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>🎙️</div>
+              <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>Welcome to JMimi</div>
+              <div style={{ fontSize: '14px', marginBottom: '16px' }}>Your AI Voice Assistant</div>
+              <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                1. Click "📱 Permissions" to grant access<br/>
+                2. Click "🚀 Start Session" to begin<br/>
+                3. Choose camera or screen sharing as needed
               </div>
             </div>
           )}
