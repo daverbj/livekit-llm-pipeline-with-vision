@@ -46,10 +46,31 @@ export function LiveKitInjectedApp() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedMicId, setSelectedMicId] = useState<string>('')
+  const [permissionsGranted, setPermissionsGranted] = useState<boolean>(false)
 
   // Room event handlers
   useEffect(() => {
     console.log('🔧 Setting up room event handlers in injected context')
+    
+    // Check for existing permissions on mount
+    const checkExistingPermissions = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const hasDeviceLabels = devices.some(device => device.label && device.label.length > 0)
+        
+        if (hasDeviceLabels) {
+          console.log('✅ Permissions already granted - device labels available')
+          setPermissionsGranted(true)
+          await enumerateAudioDevices()
+        } else {
+          console.log('⚠️ Permissions not yet granted - device labels empty')
+        }
+      } catch (error) {
+        console.log('❌ Error checking permissions:', error)
+      }
+    }
+    
+    checkExistingPermissions()
     
     const onConnected = () => {
       console.log('✅ Room.onConnected fired in injected context')
@@ -195,6 +216,12 @@ export function LiveKitInjectedApp() {
       const audioInputs = devices.filter(device => device.kind === 'audioinput')
       setAudioDevices(audioInputs)
       
+      // Check if we have device labels (indicates permissions granted)
+      const hasDeviceLabels = audioInputs.some(device => device.label && device.label.length > 0)
+      if (hasDeviceLabels) {
+        setPermissionsGranted(true)
+      }
+      
       // Set default device if none selected
       if (!selectedMicId && audioInputs.length > 0) {
         setSelectedMicId(audioInputs[0].deviceId)
@@ -224,10 +251,12 @@ export function LiveKitInjectedApp() {
       // Enumerate devices after getting permissions
       await enumerateAudioDevices()
       
+      setPermissionsGranted(true)
+      
       // Note: Screen sharing permission is requested on-demand when user clicks "Share Screen"
       // This is because getDisplayMedia() must be called in response to user interaction
       
-      setErrorMessage('Microphone and camera permissions granted! Use the buttons below to choose camera or screen sharing.')
+      setErrorMessage('Microphone and camera permissions granted!')
       
     } catch (error) {
       console.error('❌ Media permission failed in injected context:', error)
@@ -335,24 +364,48 @@ export function LiveKitInjectedApp() {
               </div>
             )}
             
+            {/* Compact Microphone Selector - Always visible when devices available */}
+            {audioDevices.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <Mic className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                <select
+                  value={selectedMicId}
+                  onChange={(e) => changeMicrophoneDevice(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-white/20 rounded-md text-xs bg-white/10 backdrop-blur-sm text-white focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-300 font-medium"
+                >
+                  {audioDevices.map((device) => (
+                    <option 
+                      key={device.deviceId} 
+                      value={device.deviceId}
+                      className="bg-slate-800 text-white"
+                    >
+                      {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
             {/* Compact Action Controls */}
             <div className="flex gap-2 mb-2">
-              <button
-                onClick={requestPermissions}
-                className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-blue-500/20 flex-1"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative flex items-center justify-center gap-1.5">
-                  <Settings className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" />
-                  <span className="text-xs">Permissions</span>
-                </div>
-              </button>
+              {!permissionsGranted && (
+                <button
+                  onClick={requestPermissions}
+                  className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-blue-500/20 flex-1"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="relative flex items-center justify-center gap-1.5">
+                    <Settings className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" />
+                    <span className="text-xs">Permissions</span>
+                  </div>
+                </button>
+              )}
               
               {!sessionStarted ? (
                 <button
                   onClick={startSession}
                   disabled={connectionStatus === 'connecting'}
-                  className={`group relative overflow-hidden px-3 py-2 rounded-lg transition-all duration-300 font-medium border text-xs flex-1 ${
+                  className={`group relative overflow-hidden px-3 py-2 rounded-lg transition-all duration-300 font-medium border text-xs ${permissionsGranted ? 'w-full' : 'flex-1'} ${
                     connectionStatus === 'connecting'
                       ? 'bg-slate-600/50 text-slate-400 cursor-not-allowed shadow-lg border-slate-600/30'
                       : 'bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border-emerald-500/20'
@@ -376,7 +429,7 @@ export function LiveKitInjectedApp() {
               ) : (
                 <button
                   onClick={endSession}
-                  className="group relative overflow-hidden bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-red-500/20 flex-1"
+                  className="group relative overflow-hidden bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white px-3 py-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] font-medium border border-red-500/20 w-full"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <div className="relative flex items-center justify-center gap-1.5">
@@ -386,33 +439,6 @@ export function LiveKitInjectedApp() {
                 </button>
               )}
             </div>
-            
-            {/* Compact Microphone Selector */}
-            {audioDevices.length > 0 && (
-              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-5 h-5 bg-gradient-to-br from-slate-700 to-slate-800 rounded-md flex items-center justify-center shadow-lg border border-white/10">
-                    <Mic className="w-3 h-3 text-blue-400" />
-                  </div>
-                  <span className="font-medium text-white text-xs">Audio Input</span>
-                </div>
-                <select
-                  value={selectedMicId}
-                  onChange={(e) => changeMicrophoneDevice(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-white/20 rounded-md text-xs bg-white/10 backdrop-blur-sm text-white focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-300 font-medium"
-                >
-                  {audioDevices.map((device) => (
-                    <option 
-                      key={device.deviceId} 
-                      value={device.deviceId}
-                      className="bg-slate-800 text-white"
-                    >
-                      {device.label || `Microphone ${device.deviceId.slice(0, 8)}...`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         </div>
 
