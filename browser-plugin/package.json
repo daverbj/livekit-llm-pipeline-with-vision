@@ -1,8 +1,8 @@
 {
-  "name": "livekit-browser-extension",
-  "displayName": "LiveKit Browser Extension",
+  "name": "quantivision-browser-extension",
+  "displayName": "QuantiVision Browser Extension",
   "version": "1.0.0",
-  "description": "Injected LiveKit interface for real-time voice and video communication",
+  "description": "QuantiVision browser extension",
   "author": "daverbj",
   "scripts": {
     "dev": "plasmo dev",

@@ -169,7 +169,8 @@ async def entrypoint(ctx: JobContext):
         stt=groq.STT(),
         llm=openai.LLM(
             
-            model="gpt-4o"
+            model="gpt-4o",
+            timeout=5000
         ),
         tts=openai.TTS(),
         vad=silero.VAD.load(),

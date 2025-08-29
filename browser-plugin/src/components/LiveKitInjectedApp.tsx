@@ -326,7 +326,7 @@ export function LiveKitInjectedApp() {
                 </div>
                 <div>
                   <h1 className="text-base font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                    JMiMi AI
+                    QuantiVision MiMi
                   </h1>
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400 text-xs">
@@ -437,13 +437,10 @@ export function LiveKitInjectedApp() {
                 {/* Welcome Message */}
                 <div className="mb-6">
                   <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent">
-                    Welcome to JMiMi AI
+                    QuantiVision JMiMi
                   </h1>
                   <p className="text-slate-300 text-base font-medium leading-relaxed mb-1">
                     Your Professional AI Voice Assistant
-                  </p>
-                  <p className="text-slate-400 text-xs">
-                    Experience seamless voice interactions with advanced AI technology
                   </p>
                 </div>
               </div>
@@ -668,10 +665,34 @@ function InjectedMediaControls({
   const cameraTrack = useTracks([Track.Source.Camera])[0]
   const screenTrack = useTracks([Track.Source.ScreenShare])[0]
   const { localParticipant } = useLocalParticipant()
+  const { state: agentState } = useVoiceAssistant()
   
   const isMicMuted = micTrack?.publication?.isMuted ?? true
   const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
   const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
+
+  // Automatically mute/unmute microphone based on agent thinking state
+  useEffect(() => {
+    const autoControlMicDuringThinking = async () => {
+      if (agentState === 'thinking' && !isMicMuted) {
+        console.log('🤔 Agent is thinking - auto-muting microphone')
+        try {
+          await localParticipant.setMicrophoneEnabled(false)
+        } catch (error) {
+          console.error('❌ Failed to auto-mute microphone:', error)
+        }
+      } else if (agentState !== 'thinking' && isMicMuted) {
+        console.log('💬 Agent finished thinking - auto-unmuting microphone')
+        try {
+          await localParticipant.setMicrophoneEnabled(true)
+        } catch (error) {
+          console.error('❌ Failed to auto-unmute microphone:', error)
+        }
+      }
+    }
+
+    autoControlMicDuringThinking()
+  }, [agentState, isMicMuted, localParticipant])
 
   const toggleCamera = async () => {
     try {
@@ -720,7 +741,9 @@ function InjectedMediaControls({
               onClick={() => audioDevices.length > 0 ? setShowMicModal(true) : undefined}
               className={`relative group p-4 rounded-2xl transition-all duration-300 shadow-xl border ${
                 isMicMuted 
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-red-500/30 shadow-red-600/25' 
+                  ? agentState === 'thinking'
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white border-amber-500/30 shadow-amber-600/25'
+                    : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-red-500/30 shadow-red-600/25'
                   : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-emerald-500/30 shadow-emerald-600/25'
               } hover:scale-110 active:scale-95`}
               title={audioDevices.length > 0 ? "Click to toggle mute or long-press for settings" : "Microphone"}
@@ -735,7 +758,7 @@ function InjectedMediaControls({
               />
             </button>
             <span className="text-xs text-slate-300 font-medium text-center">
-              Active
+              {isMicMuted && agentState === 'thinking' ? 'AI Thinking' : 'Active'}
             </span>
           </div>
           
@@ -800,15 +823,6 @@ function InjectedAgentStatus() {
   const isScreenSharing = screenTrack && !screenTrack.publication?.isMuted
   const isCameraEnabled = cameraTrack && !cameraTrack.publication?.isMuted
   
-  
-  const getAgentStatusIcon = (state: string) => {
-    switch (state) {
-      case 'listening': return <Mic className="w-3 h-3" />
-      case 'thinking': return <Loader className="w-3 h-3 animate-spin" />
-      case 'speaking': return <Volume2 className="w-3 h-3" />
-      default: return <Bot className="w-3 h-3" />
-    }
-  }
   
   return (
     <div className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl border-t border-white/10">
