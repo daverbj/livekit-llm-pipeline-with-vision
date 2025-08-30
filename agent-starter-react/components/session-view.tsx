@@ -92,15 +92,15 @@ export const SessionView = ({
     <main
       ref={ref}
       inert={disabled}
-      className={
-        // prevent page scrollbar
-        // when !chatOpen due to 'translate-y-20'
-        cn(!chatOpen && 'max-h-svh overflow-hidden')
-      }
+      className={cn(
+        // prevent page scrollbar when !chatOpen due to 'translate-y-20'
+        !chatOpen && 'max-h-svh overflow-hidden',
+        'relative min-h-screen bg-gradient-to-br from-slate-900 to-slate-800'
+      )}
     >
       <ChatMessageView
         className={cn(
-          'mx-auto min-h-svh w-full max-w-2xl px-3 pt-32 pb-40 transition-[opacity,translate] duration-300 ease-out md:px-0 md:pt-36 md:pb-48',
+          'mx-auto min-h-svh w-full max-w-2xl px-3 pt-8 pb-40 transition-[opacity,translate] duration-300 ease-out md:px-0 md:pt-12 md:pb-48 relative z-10',
           chatOpen ? 'translate-y-0 opacity-100 delay-200' : 'translate-y-20 opacity-0'
         )}
       >
@@ -121,14 +121,12 @@ export const SessionView = ({
         </div>
       </ChatMessageView>
 
-      <div className="bg-background mp-12 fixed top-0 right-0 left-0 h-32 md:h-36">
-        {/* skrim */}
-        <div className="from-background absolute bottom-0 left-0 h-12 w-full translate-y-full bg-gradient-to-b to-transparent" />
-      </div>
-
       <MediaTiles chatOpen={chatOpen} />
 
-      <div className="bg-background fixed right-0 bottom-0 left-0 z-50 px-3 pt-2 pb-3 md:px-12 md:pb-12">
+      {/* Bottom control bar */}
+      <div className="fixed right-0 bottom-0 left-0 z-50 px-3 pt-2 pb-3 md:px-12 md:pb-12">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent" />
+        
         <motion.div
           key="control-bar"
           initial={{ opacity: 0, translateY: '100%' }}
@@ -137,8 +135,9 @@ export const SessionView = ({
             translateY: sessionStarted ? '0%' : '100%',
           }}
           transition={{ duration: 0.3, delay: sessionStarted ? 0.5 : 0, ease: 'easeOut' }}
+          className="relative z-10"
         >
-          <div className="relative z-10 mx-auto w-full max-w-2xl">
+          <div className="mx-auto w-full max-w-2xl">
             {appConfig.isPreConnectBufferEnabled && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -156,7 +155,7 @@ export const SessionView = ({
                   sessionStarted && messages.length === 0 && 'pointer-events-none'
                 )}
               >
-                <p className="animate-text-shimmer inline-block !bg-clip-text text-sm font-semibold text-transparent">
+                <p className="animate-text-shimmer inline-block text-sm font-semibold text-transparent bg-gradient-to-r from-slate-300 via-blue-400 to-purple-400 bg-clip-text">
                   Agent is listening, ask it a question
                 </p>
               </motion.div>
@@ -168,8 +167,6 @@ export const SessionView = ({
               onSendMessage={handleSendMessage}
             />
           </div>
-          {/* skrim */}
-          <div className="from-background border-background absolute top-0 left-0 h-12 w-full -translate-y-full bg-gradient-to-t to-transparent" />
         </motion.div>
       </div>
     </main>

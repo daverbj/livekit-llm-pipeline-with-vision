@@ -101,108 +101,133 @@ export function MediaTiles({ chatOpen }: MediaTilesProps) {
 
   const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted;
   const isScreenShareEnabled = screenShareTrack && !screenShareTrack.publication.isMuted;
-  const hasSecondTile = isCameraEnabled || isScreenShareEnabled;
+  const hasUserVideo = isCameraEnabled || isScreenShareEnabled;
 
   const transition = {
-    ...animationProps.transition,
-    delay: chatOpen ? 0 : 0.15, // delay on close
+    type: 'spring' as const,
+    stiffness: 675,
+    damping: 75,
+    mass: 1,
+    delay: chatOpen ? 0 : 0.15,
   };
+
   const agentAnimate = {
-    ...animationProps.animate,
-    scale: chatOpen ? 1 : 3,
-    transition,
+    opacity: 1,
+    scale: chatOpen ? 1 : 1.2,
   };
-  const avatarAnimate = {
-    ...animationProps.animate,
-    transition,
+
+  const userAnimate = {
+    opacity: 1,
+    scale: 1,
   };
-  const agentLayoutTransition = transition;
-  const avatarLayoutTransition = transition;
 
   const isAvatar = agentVideoTrack !== undefined;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-8 bottom-32 z-50 md:top-12 md:bottom-40">
-      <div className="relative mx-auto h-full max-w-2xl px-4 md:px-0">
-        <div className={cn(classNames.grid)}>
-          {/* agent */}
-          <div
-            className={cn([
-              'grid',
-              // 'bg-[hotpink]', // for debugging
-              !chatOpen && classNames.agentChatClosed,
-              chatOpen && hasSecondTile && classNames.agentChatOpenWithSecondTile,
-              chatOpen && !hasSecondTile && classNames.agentChatOpenWithoutSecondTile,
-            ])}
-          >
+      <div className="relative mx-auto h-full max-w-4xl px-4 md:px-0">
+        {/* Two-box layout: Always show both agent and user boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full items-center justify-center">
+          
+          {/* Agent Box */}
+          <div className="flex justify-center">
             <AnimatePresence mode="popLayout">
               {!isAvatar && (
-                // audio-only agent
+                // Audio-only agent
                 <MotionAgentTile
                   key="agent"
                   layoutId="agent"
-                  {...animationProps}
+                  initial={{ opacity: 0, scale: 0 }}
                   animate={agentAnimate}
-                  transition={agentLayoutTransition}
+                  exit={{ opacity: 0, scale: 0 }}
+                  transition={transition}
                   state={agentState}
                   audioTrack={agentAudioTrack}
-                  className={cn(chatOpen ? 'h-[90px]' : 'h-auto w-full')}
+                  className="w-full max-w-sm aspect-video"
                 />
               )}
               {isAvatar && (
-                // avatar agent
+                // Avatar agent
                 <MotionAvatarTile
                   key="avatar"
                   layoutId="avatar"
-                  {...animationProps}
-                  animate={avatarAnimate}
-                  transition={avatarLayoutTransition}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={userAnimate}
+                  exit={{ opacity: 0, scale: 0 }}
+                  transition={transition}
                   videoTrack={agentVideoTrack}
-                  className={cn(
-                    chatOpen ? 'h-[90px] [&>video]:h-[90px] [&>video]:w-auto' : 'h-auto w-full'
-                  )}
+                  className="w-full max-w-sm aspect-video"
                 />
               )}
             </AnimatePresence>
           </div>
 
-          <div
-            className={cn([
-              'grid',
-              chatOpen && classNames.secondTileChatOpen,
-              !chatOpen && classNames.secondTileChatClosed,
-            ])}
-          >
-            {/* camera */}
+          {/* User Box */}
+          <div className="flex justify-center">
             <AnimatePresence>
-              {cameraTrack && isCameraEnabled && (
-                <MotionVideoTile
-                  key="camera"
-                  layout="position"
-                  layoutId="camera"
-                  {...animationProps}
-                  trackRef={cameraTrack}
-                  transition={{
-                    ...animationProps.transition,
-                    delay: chatOpen ? 0 : 0.15,
-                  }}
-                  className="h-[90px]"
-                />
-              )}
-              {/* screen */}
-              {isScreenShareEnabled && (
-                <MotionVideoTile
-                  key="screen"
-                  layout="position"
-                  layoutId="screen"
-                  {...animationProps}
-                  trackRef={screenShareTrack}
-                  transition={{
-                    ...animationProps.transition,
-                    delay: chatOpen ? 0 : 0.15,
-                  }}
-                  className="h-[90px]"
-                />
+              {hasUserVideo ? (
+                // User has video (camera or screen share)
+                <div>
+                  {isCameraEnabled && (
+                    <MotionVideoTile
+                      key="camera"
+                      layout="position"
+                      layoutId="camera"
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0 }}
+                      trackRef={cameraTrack}
+                      transition={transition}
+                      className="w-full max-w-sm aspect-video"
+                    />
+                  )}
+                  {isScreenShareEnabled && (
+                    <MotionVideoTile
+                      key="screen"
+                      layout="position"
+                      layoutId="screen"
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0 }}
+                      trackRef={screenShareTrack}
+                      transition={transition}
+                      className="w-full max-w-sm aspect-video"
+                    />
+                  )}
+                </div>
+              ) : (
+                // User audio-only placeholder
+                <motion.div
+                  key="user-placeholder"
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={userAnimate}
+                  exit={{ opacity: 0, scale: 0 }}
+                  transition={transition}
+                  className="w-full max-w-sm"
+                >
+                  <div className="relative bg-gradient-to-br from-slate-700/80 to-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl p-6 overflow-hidden aspect-video flex items-center justify-center">
+                    {/* Background effects */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/5" />
+                    
+                    {/* User info */}
+                    <div className="relative z-10 flex flex-col items-center text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl mb-4 border border-white/10">
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="text-lg font-bold text-white mb-2">You</div>
+                      <div className="text-sm font-medium px-3 py-1.5 rounded-full border text-emerald-400 bg-emerald-500/20 border-emerald-500/30">
+                        Audio Only
+                      </div>
+                    </div>
+                    
+                    {/* Status indicator */}
+                    <div className="absolute top-3 right-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/40 animate-pulse" />
+                    </div>
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
