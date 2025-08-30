@@ -129,7 +129,7 @@ export function AgentControlBar({
                 pressed={microphoneToggle.enabled}
                 disabled={microphoneToggle.pending}
                 onPressedChange={microphoneToggle.toggle}
-                className="peer/track group/track relative w-auto pr-4 pl-4 md:rounded-r-none md:border-r-0 md:pr-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 data-[state=off]:from-red-600 data-[state=off]:to-red-700 border-emerald-500/30 data-[state=off]:border-red-500/30 shadow-lg transition-all duration-300"
+                className="peer/track group/track relative w-auto pr-4 pl-4 md:rounded-r-none md:border-r-0 md:pr-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 data-[state=off]:from-red-600 data-[state=off]:to-red-700 border-slate-500/30 data-[state=off]:border-red-500/30 shadow-lg transition-all duration-300"
               >
                 <BarVisualizer
                   barCount={3}

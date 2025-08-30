@@ -10,6 +10,7 @@ import aiohttp
 import json
 import uuid
 from openai import OpenAI
+from livekit.plugins import google
 from livekit.plugins import groq
 from livekit.agents import (
     Agent,
@@ -264,8 +265,6 @@ class Assistant(Agent):
                             # Store the latest frame as data URL for use later
                             self._latest_frame = data_url
                             
-                            logger.debug(f"Processed video frame")
-                            
                         except Exception as encode_error:
                             logger.error(f"Failed to encode video frame: {encode_error}")
                             # Store raw frame as fallback
@@ -284,17 +283,27 @@ class Assistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        stt=groq.STT(),
-        llm=openai.LLM(
+        # stt=groq.STT(),
+        # llm=openai.LLM(
             
-            model="gpt-4o",
-            timeout=5000
+        #     model="gpt-4o",
+        #     timeout=5000
+        # ),
+        # llm=openai.realtime.RealtimeModel(
+        #     model="gpt-realtime-2025-08-28"
+            
+        # ),
+        llm=google.beta.realtime.RealtimeModel(
+            model="gemini-2.5-flash-preview-native-audio-dialog",
+            voice="Puck",
+            temperature=0.8,
+            instructions="You are a helpful assistant",
         ),
-        tts=openai.TTS(),
-        vad=silero.VAD.load(
-            activation_threshold=0.7
-        ),
-        turn_detection=MultilingualModel(),
+        # tts=openai.TTS(),
+        # vad=silero.VAD.load(
+        #     activation_threshold=0.7
+        # ),
+        # turn_detection=MultilingualModel(),
         preemptive_generation=False
     )
 

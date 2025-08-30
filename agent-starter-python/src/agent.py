@@ -194,15 +194,15 @@ async def entrypoint(ctx: JobContext):
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # Using qwen2.5vl which supports vision capabilities with increased timeout
         # See all providers at https://docs.livekit.io/agents/integrations/llm/
-        llm=openai.LLM.with_ollama(
-            model="gemma3:4b",
+        llm=openai.realtime.RealtimeModel(
+            model="gpt-realtime-2025-08-28",
         ),
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all providers at https://docs.livekit.io/agents/integrations/stt/
-        stt=openai.STT(model="whisper-1"),
+        # stt=openai.STT(model="whisper-1"),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all providers at https://docs.livekit.io/agents/integrations/tts/
-        tts=openai.TTS(),
+        # tts=openai.TTS(),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
