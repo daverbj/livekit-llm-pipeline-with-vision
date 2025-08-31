@@ -79,10 +79,15 @@ const classNames = {
 export function useLocalTrackRef(source: Track.Source) {
   const { localParticipant } = useLocalParticipant();
   const publication = localParticipant.getTrackPublication(source);
-  const trackRef = useMemo<TrackReference | undefined>(
-    () => (publication ? { source, participant: localParticipant, publication } : undefined),
-    [source, publication, localParticipant]
-  );
+  
+  const trackRef = useMemo<TrackReference | undefined>(() => {
+    if (publication) {
+      console.log(`Track ref updated for ${source}:`, publication.trackSid);
+      return { source, participant: localParticipant, publication };
+    }
+    return undefined;
+  }, [source, publication, localParticipant]);
+  
   return trackRef;
 }
 
@@ -96,12 +101,20 @@ export function MediaTiles({ chatOpen }: MediaTilesProps) {
     audioTrack: agentAudioTrack,
     videoTrack: agentVideoTrack,
   } = useVoiceAssistant();
-  const [screenShareTrack] = useTracks([Track.Source.ScreenShare]);
+  const [screenShareTrack] = useTracks([Track.Source.ScreenShare], { updateOnlyOn: [] });
   const cameraTrack: TrackReference | undefined = useLocalTrackRef(Track.Source.Camera);
 
   const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted;
   const isScreenShareEnabled = screenShareTrack && !screenShareTrack.publication.isMuted;
   const hasUserVideo = isCameraEnabled || isScreenShareEnabled;
+
+  // Debug logging for track states
+  React.useEffect(() => {
+    console.log('Media Tiles - Track states:', {
+      camera: { enabled: isCameraEnabled, trackSid: cameraTrack?.publication?.trackSid },
+      screenShare: { enabled: isScreenShareEnabled, trackSid: screenShareTrack?.publication?.trackSid },
+    });
+  }, [isCameraEnabled, isScreenShareEnabled, cameraTrack?.publication?.trackSid, screenShareTrack?.publication?.trackSid]);
 
   const transition = {
     type: 'spring' as const,

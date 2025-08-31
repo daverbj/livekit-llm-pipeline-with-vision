@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { Track } from 'livekit-client';
 import {
   type AgentState,
   type ReceivedChatMessage,
@@ -9,6 +10,7 @@ import {
   useVoiceAssistant,
 } from '@livekit/components-react';
 import { toastAlert } from '@/components/alert-toast';
+import { DebugPanel } from '@/components/debug-panel';
 import { AgentControlBar } from '@/components/livekit/agent-control-bar/agent-control-bar';
 import { ChatEntry } from '@/components/livekit/chat/chat-entry';
 import { ChatMessageView } from '@/components/livekit/chat/chat-message-view';
@@ -46,6 +48,14 @@ export const SessionView = ({
   async function handleSendMessage(message: string) {
     await send(message);
   }
+
+  const handleDeviceError = React.useCallback((error: { source: Track.Source; error: Error }) => {
+    console.error(`Device error for ${error.source}:`, error.error);
+    toastAlert({
+      title: 'Device Error',
+      description: `Failed to switch ${error.source} device: ${error.error.message}`,
+    });
+  }, []);
 
   useEffect(() => {
     if (sessionStarted) {
@@ -165,10 +175,14 @@ export const SessionView = ({
               capabilities={capabilities}
               onChatOpenChange={setChatOpen}
               onSendMessage={handleSendMessage}
+              onDeviceError={handleDeviceError}
             />
           </div>
         </motion.div>
       </div>
+
+      {/* Debug Panel - only in development */}
+      {process.env.NODE_ENV === 'development' && <DebugPanel />}
     </main>
   );
 };

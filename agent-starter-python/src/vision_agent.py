@@ -6,8 +6,6 @@ import numpy as np
 from dotenv import load_dotenv
 import base64
 import asyncio
-import aiohttp
-import json
 import uuid
 from openai import OpenAI
 from livekit.plugins import google
@@ -60,6 +58,8 @@ logger.addHandler(console_handler)
 
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
+from utils.bedrock_processor import process_bedrock_chat
+from utils.openai_processor import process_openai_chat
 class Assistant(Agent):
     def __init__(self) -> None:
         self._latest_frame = None
@@ -67,7 +67,14 @@ class Assistant(Agent):
         self._tasks = []
         self._current_audio_buffer = []  # Store current audio session
         self._current_audio_session_id = None
-        super().__init__(instructions="""You are a helpful voice AI assistant.""")
+        super().__init__(instructions="""
+                         You are a helpful voice AI assistant.
+                         You have to guide user to resolve their issues.
+                         Your response should be **one step at a time**.
+                         User always provides you the latest screenshot of his screen.
+                         You must analyse the screen and answer user based on the current screen situation.
+                         Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+                         """)
     
     async def llm_node(
         self,
@@ -75,13 +82,15 @@ class Assistant(Agent):
         tools: list[FunctionTool],
         model_settings: ModelSettings
     ) -> AsyncIterable[llm.ChatChunk]:
-        # Insert custom preprocessing here
-        async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
-            # Insert custom postprocessing here
-            yield chunk
+        # Use the utility function to process Openai chat
+        async for chunk_content in process_openai_chat(chat_ctx, base_url="http://209.170.80.132:18084/v1", model="google/gemma-3-12b-it"):
+            yield chunk_content
+        # async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
+        #     # Insert custom postprocessing here
+        #     yield chunk
 
     async def on_enter(self):
-        self.session.generate_reply(user_input="Greet the user with just 4 words.", allow_interruptions=False)
+        self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
         room = get_job_context().room
         
         # Handle existing participants
@@ -181,7 +190,7 @@ class Assistant(Agent):
         """Clean up streams when a participant disconnects"""
         logger.info(f"Cleaned up streams for disconnected participant {participant_identity}")
         # Save any pending audio when participant disconnects
-        await self._save_current_audio_session()
+        # await self._save_current_audio_session()
     
     async def _save_current_audio_session(self):
         """Save the current audio session to WAV file"""
@@ -283,7 +292,7 @@ class Assistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        # stt=groq.STT(),
+        stt=groq.STT(),
         # llm=openai.LLM(
             
         #     model="gpt-4o",
@@ -293,17 +302,23 @@ async def entrypoint(ctx: JobContext):
         #     model="gpt-realtime-2025-08-28"
             
         # ),
-        llm=google.beta.realtime.RealtimeModel(
-            model="gemini-2.5-flash-preview-native-audio-dialog",
-            voice="Puck",
-            temperature=0.8,
-            instructions="You are a helpful assistant",
-        ),
-        # tts=openai.TTS(),
-        # vad=silero.VAD.load(
-        #     activation_threshold=0.7
+        # llm=google.beta.realtime.RealtimeModel(
+        #     model="gemini-2.5-flash-preview-native-audio-dialog",
+        #     voice="Puck",
+        #     temperature=0.8,
+        #     instructions="You are a helpful assistant",
         # ),
-        # turn_detection=MultilingualModel(),
+        # llm=openai.LLM(timeout=5000).with_ollama(
+        #     model="gemma3:4b"
+        # ),
+        llm=aws.LLM(
+            model="us.anthropic.claude-sonnet-4-20250514-v1:0"
+        ),
+        tts=deepgram.TTS(),
+        vad=silero.VAD.load(
+            activation_threshold=0.7
+        ),
+        turn_detection=MultilingualModel(),
         preemptive_generation=False
     )
 

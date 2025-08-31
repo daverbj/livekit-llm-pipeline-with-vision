@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { cva } from 'class-variance-authority';
 import { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import { useMaybeRoomContext, useMediaDeviceSelect } from '@livekit/components-react';
@@ -46,9 +47,9 @@ export function DeviceSelect({
   track,
   requestPermissions,
   onMediaDeviceError,
-  // initialSelection,
-  // onActiveDeviceChange,
-  // onDeviceListChange,
+  initialSelection,
+  onActiveDeviceChange,
+  onDeviceListChange,
   ...props
 }: DeviceSelectProps) {
   const size = props.size || 'default';
@@ -61,8 +62,26 @@ export function DeviceSelect({
     requestPermissions,
     onError: onMediaDeviceError,
   });
+
+  // Ensure system default is selected if no active device
+  React.useEffect(() => {
+    if (!activeDeviceId && devices.length > 0) {
+      const defaultDevice = devices.find(device => device.deviceId === 'default') || devices[0];
+      if (defaultDevice) {
+        setActiveMediaDevice(defaultDevice.deviceId);
+        onActiveDeviceChange?.(defaultDevice.deviceId);
+      }
+    }
+  }, [activeDeviceId, devices, setActiveMediaDevice, onActiveDeviceChange]);
+
+  const handleDeviceChange = React.useCallback((deviceId: string) => {
+    console.log(`Changing ${kind} device to:`, deviceId);
+    setActiveMediaDevice(deviceId);
+    onActiveDeviceChange?.(deviceId);
+  }, [setActiveMediaDevice, onActiveDeviceChange, kind]);
+
   return (
-    <Select value={activeDeviceId} onValueChange={setActiveMediaDevice}>
+    <Select value={activeDeviceId} onValueChange={handleDeviceChange}>
       <SelectTrigger className={cn(selectVariants({ size }), props.className)}>
         {size !== 'sm' && (
           <SelectValue className="font-mono text-sm" placeholder={`Select a ${kind}`} />
