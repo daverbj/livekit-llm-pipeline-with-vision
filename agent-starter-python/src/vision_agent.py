@@ -147,7 +147,23 @@ class Assistant(Agent):
     async def on_enter(self):
         self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
         room = get_job_context().room
-        
+        _active_tasks = set()
+
+        async def async_handle_text_stream(reader, participant_identity):
+            info = reader.info
+            # Option 2: Get the entire text after the stream completes.
+            text = await reader.read_all()
+            print(f"Received text: {text}")
+
+        def handle_text_stream(reader, participant_identity):
+            task = asyncio.create_task(async_handle_text_stream(reader, participant_identity))
+            _active_tasks.add(task)
+            task.add_done_callback(lambda t: _active_tasks.remove(t))
+
+        room.register_text_stream_handler(
+            "my-topic",
+            handle_text_stream
+        )
         # Handle existing participants
         if room.remote_participants:
             for participant in room.remote_participants.values():
@@ -173,7 +189,6 @@ class Assistant(Agent):
     async def on_exit(self):
         """Called when the agent session ends"""
         logger.info("Agent session ending, saving any pending audio")
-        await self._save_current_audio_session()
         
     async def on_user_turn_completed(self, turn_ctx: ChatContext, new_message: ChatMessage) -> None:
         # Add the latest video frame, if any, to the new message
@@ -196,15 +211,8 @@ class Assistant(Agent):
             async for frame in audio:
                 # Save frame for WAV file
                 self._current_audio_buffer.append(frame)
-                frame_count += 1
-                if frame_count % 100 == 0:  # Log every 100 frames
-                    logger.debug(f"Collected {frame_count} audio frames")
-                # Yield frame for STT processing
                 yield frame
             
-            logger.info(f"Audio stream completed naturally. Total frames collected: {frame_count}")
-            # Save immediately when stream completes naturally
-            await self._save_current_audio_session()
         
         # Process STT with the teed audio stream
         async for event in Agent.default.stt_node(self, tee_audio_stream(), model_settings):
@@ -244,52 +252,6 @@ class Assistant(Agent):
     async def _cleanup_participant_streams(self, participant_identity: str):
         """Clean up streams when a participant disconnects"""
         logger.info(f"Cleaned up streams for disconnected participant {participant_identity}")
-        # Save any pending audio when participant disconnects
-        # await self._save_current_audio_session()
-    
-    async def _save_current_audio_session(self):
-        """Save the current audio session to WAV file"""
-        if not self._current_audio_buffer or not self._current_audio_session_id:
-            logger.info("No current audio session to save")
-            return
-            
-        audio_filename = f"tmp/audio_debug/stt_audio_{self._current_audio_session_id}.wav"
-        logger.info(f"Saving current audio session with {len(self._current_audio_buffer)} frames to {audio_filename}")
-        
-        try:
-            # Ensure the directory exists
-            os.makedirs(os.path.dirname(audio_filename), exist_ok=True)
-            
-            # Combine all audio frames
-            combined_audio = []
-            sample_rate = None
-            
-            for frame in self._current_audio_buffer:
-                if sample_rate is None:
-                    sample_rate = frame.sample_rate
-                
-                # Convert frame data to numpy array
-                audio_data = np.frombuffer(frame.data, dtype=np.int16)
-                combined_audio.extend(audio_data)
-            
-            if combined_audio and sample_rate:
-                # Write to WAV file
-                with wave.open(audio_filename, 'wb') as wav_file:
-                    wav_file.setnchannels(1)  # Mono
-                    wav_file.setsampwidth(2)  # 16-bit
-                    wav_file.setframerate(sample_rate)
-                    wav_file.writeframes(np.array(combined_audio, dtype=np.int16).tobytes())
-                
-                logger.info(f"Successfully saved audio to {audio_filename} ({len(combined_audio)} samples, {sample_rate}Hz)")
-            else:
-                logger.warning("No valid audio data to save")
-                
-        except Exception as e:
-            logger.error(f"Failed to save current audio session: {e}")
-        finally:
-            # Clear the current session
-            self._current_audio_buffer = []
-            self._current_audio_session_id = None
     
     # Helper method to buffer the latest video frame from the user's track
     def _create_video_stream(self, track: rtc.Track):
