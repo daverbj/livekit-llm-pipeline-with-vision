@@ -62,6 +62,8 @@ from langchain_ollama import ChatOllama
 from utils.bedrock_processor import process_bedrock_chat
 from utils.openai_processor import process_openai_chat
 from utils.langgraph_processor import process_langgraph_chat
+from utils.lg_react_agent_processor import process_langgraph_react_chat
+from utils.gemma_processor_ollama import process_gemma_ollama_chat
 class Assistant(Agent):
     def __init__(self) -> None:
         self._latest_frame = None
@@ -85,19 +87,35 @@ class Assistant(Agent):
         tools: list[FunctionTool],
         model_settings: ModelSettings
     ) -> AsyncIterable[llm.ChatChunk]:
-        # Use the LangGraph processor instead of OpenAI processor
-        # You can choose between simple or advanced LangGraph processor
+        # Use the Gemma Ollama processor for direct Ollama integration
+        # This handles Gemma's system message limitations properly
         
-        # Option 1: Simple LangGraph chatbot
-        async for chunk_content in process_langgraph_chat(
+        async for chunk_content in process_gemma_ollama_chat(
             chat_ctx, 
-            model=ChatOpenAI(
-                model="gpt-4o",
-                temperature=0.7,
-                streaming=True
-            )
+            model="gemma3:4b",
+            ollama_url="http://localhost:11434/api/chat"
         ):
             yield chunk_content
+        
+        # LangGraph ReAct processor (commented out)
+        # async for chunk_content in process_langgraph_react_chat(
+        #     chat_ctx, 
+        #     model=ChatOllama(
+        #         model="gemma3:4b",
+        #         temperature=0.7
+        #     ),
+        # ):
+        #     yield chunk_content
+        
+        # Original LangGraph processor (commented out - doesn't work with Gemma3)
+        # async for chunk_content in process_langgraph_chat(
+        #     chat_ctx, 
+        #     model=ChatOllama(
+        #         model="gemma3:4b",
+        #         streaming=True
+        #     )
+        # ):
+        #     yield chunk_content
         
         # Original OpenAI processor (commented out)
         # async for chunk_content in process_openai_chat(chat_ctx, base_url="http://209.170.80.132:18084/v1", model="google/gemma-3-12b-it", session=self.session):
