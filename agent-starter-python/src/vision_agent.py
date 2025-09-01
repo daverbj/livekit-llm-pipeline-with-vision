@@ -60,6 +60,7 @@ from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
 from utils.bedrock_processor import process_bedrock_chat
 from utils.openai_processor import process_openai_chat
+from utils.langgraph_processor import process_langgraph_chat
 class Assistant(Agent):
     def __init__(self) -> None:
         self._latest_frame = None
@@ -68,26 +69,59 @@ class Assistant(Agent):
         self._current_audio_buffer = []  # Store current audio session
         self._current_audio_session_id = None
         super().__init__(instructions="""
-                         You are a helpful voice AI assistant.
-                         You have to guide user to resolve their issues.
-                         Your response should be **one step at a time**.
-                         User always provides you the latest screenshot of his screen.
-                         You must analyse the screen and answer user based on the current screen situation.
-                         Response user as if you are a human in a call so do not format your answer, it should be raw text only.
-                         """)
-    
+                        You are a helpful voice AI assistant.
+                        You have to guide user to resolve their issues.
+                        Your response should be **one step at a time**.
+                        User always provides you the latest screenshot of his screen.
+                        You must analyse the screen and answer user based on the current screen situation.
+                        Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+
+                        You have the following knowledge base:
+                        Q: How to change contact life cycle stage in hubspot?
+                        Answer:
+                        click CRM menu from the left sidebar.
+                        From the menus click on "Contacts".
+                        You should see a list of contacts now.
+                        click on the contact you want to change. 
+                        Once you are on the contact details page, locate the "Actions" button which is on left side just above the contact's name.
+                        Click on "View all properties" to see all the details related to the contact.
+                        On the right side, you will see a panel with all the properties of the contact.
+                        Search for the property "Lifecycle stage" in the panel.
+                        Change the "Lifecycle stage" property to the desired value.
+
+                """)
+
     async def llm_node(
         self,
         chat_ctx: llm.ChatContext,
         tools: list[FunctionTool],
         model_settings: ModelSettings
     ) -> AsyncIterable[llm.ChatChunk]:
-        # Use the utility function to process Openai chat
-        async for chunk_content in process_openai_chat(chat_ctx, base_url="http://209.170.80.132:18084/v1", model="google/gemma-3-12b-it"):
+        # Use the LangGraph processor instead of OpenAI processor
+        # You can choose between simple or advanced LangGraph processor
+        
+        # Option 1: Simple LangGraph chatbot
+        async for chunk_content in process_langgraph_chat(
+            chat_ctx, 
+            model=ChatOpenAI(
+                model="gpt-4o",
+                temperature=0.7,
+                streaming=True,
+                api_key=os.getenv("OPENAI_API_KEY")
+            ),
+            system_prompt="""You are a helpful voice AI assistant.
+            You have to guide user to resolve their issues.
+            Your response should be **one step at a time**.
+            User always provides you the latest screenshot of his screen.
+            You must analyse the screen and answer user based on the current screen situation.
+            Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+        """
+        ):
             yield chunk_content
-        # async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
-        #     # Insert custom postprocessing here
-        #     yield chunk
+        
+        # Original OpenAI processor (commented out)
+        # async for chunk_content in process_openai_chat(chat_ctx, base_url="http://209.170.80.132:18084/v1", model="google/gemma-3-12b-it", session=self.session):
+        #     yield chunk_content
 
     async def on_enter(self):
         self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)

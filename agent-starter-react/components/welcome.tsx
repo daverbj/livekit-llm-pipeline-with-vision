@@ -61,13 +61,13 @@ export const Welcome = ({
         {/* Welcome Message */}
         <div className="mb-8 max-w-lg">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent">
-            Voice AI Assistant
+            QuantiVision MiMi
           </h1>
           <p className="text-slate-300 text-lg font-medium leading-relaxed mb-2">
-            Chat live with your voice AI agent
+            Chat MiMi
           </p>
           <p className="text-slate-400 text-base">
-            Experience natural conversation with advanced AI
+            MiMi can see your screen and help you troubleshoot issues step-by-step.
           </p>
         </div>
 

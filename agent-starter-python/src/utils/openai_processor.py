@@ -16,7 +16,8 @@ async def process_openai_chat(
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
     max_tokens: int = 512,
-    temperature: float = 0.5
+    temperature: float = 0.5,
+    session = None
 ) -> AsyncIterable[str]:
     """
     Process chat context with OpenAI API, sending only the latest message's image data.
@@ -108,7 +109,7 @@ async def process_openai_chat(
                 "role": role,
                 "content": content_blocks
             })
-    
+    session.say(text="Give me a moment please")
     # Second pass: merge consecutive messages with the same role
     i = 0
     while i < len(raw_messages):
