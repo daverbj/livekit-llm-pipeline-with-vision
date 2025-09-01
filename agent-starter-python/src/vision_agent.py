@@ -58,6 +58,7 @@ logger.addHandler(console_handler)
 
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from utils.bedrock_processor import process_bedrock_chat
 from utils.openai_processor import process_openai_chat
 from utils.langgraph_processor import process_langgraph_chat
@@ -76,19 +77,6 @@ class Assistant(Agent):
                         You must analyse the screen and answer user based on the current screen situation.
                         Response user as if you are a human in a call so do not format your answer, it should be raw text only.
 
-                        You have the following knowledge base:
-                        Q: How to change contact life cycle stage in hubspot?
-                        Answer:
-                        click CRM menu from the left sidebar.
-                        From the menus click on "Contacts".
-                        You should see a list of contacts now.
-                        click on the contact you want to change. 
-                        Once you are on the contact details page, locate the "Actions" button which is on left side just above the contact's name.
-                        Click on "View all properties" to see all the details related to the contact.
-                        On the right side, you will see a panel with all the properties of the contact.
-                        Search for the property "Lifecycle stage" in the panel.
-                        Change the "Lifecycle stage" property to the desired value.
-
                 """)
 
     async def llm_node(
@@ -106,16 +94,8 @@ class Assistant(Agent):
             model=ChatOpenAI(
                 model="gpt-4o",
                 temperature=0.7,
-                streaming=True,
-                api_key=os.getenv("OPENAI_API_KEY")
-            ),
-            system_prompt="""You are a helpful voice AI assistant.
-            You have to guide user to resolve their issues.
-            Your response should be **one step at a time**.
-            User always provides you the latest screenshot of his screen.
-            You must analyse the screen and answer user based on the current screen situation.
-            Response user as if you are a human in a call so do not format your answer, it should be raw text only.
-        """
+                streaming=True
+            )
         ):
             yield chunk_content
         
@@ -346,7 +326,7 @@ async def entrypoint(ctx: JobContext):
         #     model="gemma3:4b"
         # ),
         llm=aws.LLM(
-            model="us.anthropic.claude-sonnet-4-20250514-v1:0"
+            # doesnt matter now
         ),
         tts=deepgram.TTS(),
         vad=silero.VAD.load(
