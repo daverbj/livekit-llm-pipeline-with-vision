@@ -67,6 +67,7 @@ model Video {
   filePath         String
   audioPath        String?
   transcription    String?
+  transcriptionData String?         // JSON data with timestamps
   tutorialSteps    String?
   processingStatus ProcessingStatus @default(UPLOADED)
   projectId        String

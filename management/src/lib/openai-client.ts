@@ -132,6 +132,43 @@ async function splitAudioIntoChunks(audioPath: string, chunkDuration: number = C
 }
 
 /**
+ * Transcribe a single audio file with timestamps (must be under 25MB)
+ */
+async function transcribeSingleFileWithTimestamps(audioPath: string, chunkStartTime: number = 0): Promise<any> {
+  const fileSize = getFileSize(audioPath);
+  if (fileSize > MAX_FILE_SIZE) {
+    throw new Error(`Audio file too large: ${fileSize} bytes (max: ${MAX_FILE_SIZE} bytes)`);
+  }
+
+  const transcription = await openai.audio.transcriptions.create({
+    file: fs.createReadStream(audioPath),
+    model: 'whisper-1',
+    language: 'en', // Can be made configurable
+    response_format: 'verbose_json',
+    timestamp_granularities: ['word', 'segment'],
+  });
+
+  // Adjust timestamps for chunk offset
+  if (chunkStartTime > 0 && transcription.words) {
+    transcription.words = transcription.words.map((word: any) => ({
+      ...word,
+      start: word.start + chunkStartTime,
+      end: word.end + chunkStartTime,
+    }));
+  }
+
+  if (chunkStartTime > 0 && transcription.segments) {
+    transcription.segments = transcription.segments.map((segment: any) => ({
+      ...segment,
+      start: segment.start + chunkStartTime,
+      end: segment.end + chunkStartTime,
+    }));
+  }
+
+  return transcription;
+}
+
+/**
  * Transcribe a single audio file (must be under 25MB)
  */
 async function transcribeSingleFile(audioPath: string): Promise<string> {
@@ -256,6 +293,110 @@ export async function transcribeAudio(audioPath: string): Promise<string> {
 
   } catch (error) {
     console.error('Error transcribing audio:', error);
+    throw error;
+  }
+}
+
+/**
+ * Transcribe audio file with timestamps using OpenAI Whisper
+ */
+export async function transcribeAudioWithTimestamps(audioPath: string): Promise<any> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is missing. Please add your OpenAI API key to the .env file.');
+    }
+
+    if (!fs.existsSync(audioPath)) {
+      throw new Error(`Audio file not found: ${audioPath}`);
+    }
+
+    const fileSize = getFileSize(audioPath);
+    console.log(`Audio file size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
+
+    // If file is small enough, transcribe directly
+    if (fileSize <= MAX_FILE_SIZE) {
+      console.log('File size is within limits, transcribing with timestamps directly...');
+      return await transcribeSingleFileWithTimestamps(audioPath);
+    }
+
+    // File is too large, need to split into chunks
+    console.log('File size exceeds limit, splitting into chunks for timestamp transcription...');
+    
+    // Calculate optimal chunk duration
+    let chunkDuration = calculateChunkDuration(fileSize);
+    
+    // For very large files, be more aggressive with smaller chunks
+    if (fileSize > MAX_FILE_SIZE * 3) {
+      chunkDuration = Math.max(120, chunkDuration / 2);
+      console.log(`Very large file detected, using aggressive chunking: ${chunkDuration}s per chunk`);
+    }
+    
+    let chunkPaths: string[] = [];
+    try {
+      // Split audio into chunks
+      chunkPaths = await splitAudioIntoChunks(audioPath, chunkDuration);
+      
+      if (chunkPaths.length === 0) {
+        throw new Error('No chunks were created during audio splitting');
+      }
+
+      // Transcribe each chunk with timestamps
+      const allWords: any[] = [];
+      const allSegments: any[] = [];
+      let fullText = '';
+      const errors: string[] = [];
+      
+      for (let i = 0; i < chunkPaths.length; i++) {
+        const chunkPath = chunkPaths[i];
+        const chunkStartTime = i * chunkDuration;
+        const chunkSize = getFileSize(chunkPath);
+        console.log(`Transcribing chunk ${i + 1}/${chunkPaths.length} with timestamps: ${path.basename(chunkPath)} (${(chunkSize / 1024 / 1024).toFixed(2)}MB), offset: ${chunkStartTime}s`);
+        
+        try {
+          const chunkTranscription = await transcribeSingleFileWithTimestamps(chunkPath, chunkStartTime);
+          
+          if (chunkTranscription.text) {
+            fullText += (fullText ? ' ' : '') + chunkTranscription.text;
+          }
+          
+          if (chunkTranscription.words) {
+            allWords.push(...chunkTranscription.words);
+          }
+          
+          if (chunkTranscription.segments) {
+            allSegments.push(...chunkTranscription.segments);
+          }
+          
+          console.log(`✅ Chunk ${i + 1} transcribed with timestamps successfully`);
+        } catch (chunkError) {
+          const errorMsg = `Error transcribing chunk ${i + 1}: ${chunkError instanceof Error ? chunkError.message : 'Unknown error'}`;
+          console.error(`❌ ${errorMsg}`);
+          errors.push(errorMsg);
+        }
+      }
+
+      if (allSegments.length === 0 && allWords.length === 0) {
+        throw new Error(`All ${chunkPaths.length} chunks failed to transcribe with timestamps. Errors: ${errors.join('; ')}`);
+      }
+
+      const result = {
+        text: fullText.trim(),
+        segments: allSegments,
+        words: allWords,
+      };
+
+      console.log(`✅ Successfully transcribed with timestamps: ${result.segments.length} segments, ${result.words.length} words`);
+      return result;
+
+    } finally {
+      // Clean up chunk files
+      if (chunkPaths.length > 0) {
+        cleanupChunkFiles(chunkPaths);
+      }
+    }
+
+  } catch (error) {
+    console.error('Error transcribing audio with timestamps:', error);
     throw error;
   }
 }

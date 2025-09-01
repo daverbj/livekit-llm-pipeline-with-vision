@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleBasedRoute from '@/components/RoleBasedRoute';
 import AppLayout from '@/components/AppLayout';
+import VideoPlayer from '@/components/VideoPlayer';
 import { ArrowLeft, Play, FileText, List, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 
 interface Video {
@@ -15,6 +16,7 @@ interface Video {
   description: string;
   processingStatus: string;
   transcription?: string;
+  transcriptionData?: unknown;
   tutorialSteps?: string[];
   createdAt: string;
   updatedAt: string;
@@ -189,9 +191,16 @@ export default function VideoDetailPage() {
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Video Info */}
-              <div className="space-y-6">
+            <div className="space-y-8">
+              {/* Video Player with Side-by-Side Layout */}
+              <VideoPlayer
+                videoPath={`/api/projects/${projectId}/videos/${videoId}/stream`}
+                transcriptionData={video.transcriptionData as any}
+                tutorialSteps={video.tutorialSteps}
+              />
+
+              {/* Additional Video Information */}
+              <div className="grid lg:grid-cols-2 gap-8">
                 {/* Description */}
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -212,6 +221,13 @@ export default function VideoDetailPage() {
                       <p className="text-gray-900">{video.originalName}</p>
                     </div>
                     <div>
+                      <span className="text-sm font-medium text-gray-500">Processing Status:</span>
+                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(video.processingStatus)}`}>
+                        {getStatusIcon(video.processingStatus)}
+                        {getStatusText(video.processingStatus)}
+                      </div>
+                    </div>
+                    <div>
                       <span className="text-sm font-medium text-gray-500">Uploaded:</span>
                       <p className="text-gray-900">{new Date(video.createdAt).toLocaleString()}</p>
                     </div>
@@ -223,59 +239,20 @@ export default function VideoDetailPage() {
                 </div>
               </div>
 
-              {/* Processing Results */}
-              <div className="space-y-6">
-                {/* Tutorial Steps */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <List className="w-5 h-5 text-purple-600" />
-                    Tutorial Steps
-                  </h2>
-                  
-                  {video.tutorialSteps && video.tutorialSteps.length > 0 ? (
-                    <ol className="space-y-3">
-                      {video.tutorialSteps.map((step, index) => (
-                        <li key={index} className="flex gap-3">
-                          <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-700 text-sm font-medium rounded-full flex items-center justify-center">
-                            {index + 1}
-                          </span>
-                          <span className="text-gray-700 leading-relaxed">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : video.processingStatus === 'COMPLETED' ? (
-                    <p className="text-gray-500 italic">No tutorial steps generated.</p>
-                  ) : (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Loader className="w-4 h-4 animate-spin" />
-                      <span>Processing video to generate tutorial steps...</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Transcription */}
+              {/* Full Transcription (if needed for reference) */}
+              {video.transcription && (
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-green-600" />
-                    Transcription
+                    Full Transcription
                   </h2>
-                  
-                  {video.transcription ? (
-                    <div className="prose prose-sm max-w-none">
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {video.transcription}
-                      </p>
-                    </div>
-                  ) : video.processingStatus === 'COMPLETED' ? (
-                    <p className="text-gray-500 italic">No transcription available.</p>
-                  ) : (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Loader className="w-4 h-4 animate-spin" />
-                      <span>Processing audio to generate transcription...</span>
-                    </div>
-                  )}
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {video.transcription}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

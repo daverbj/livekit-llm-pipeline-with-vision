@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
 import { extractAudioWithFallback, checkFFmpegInstallation } from '@/lib/video-processing';
-import { transcribeAudio, generateTutorialSteps } from '@/lib/openai-client';
+import { transcribeAudio, transcribeAudioWithTimestamps, generateTutorialSteps } from '@/lib/openai-client';
 import { storeVideoInQdrant } from '@/lib/embeddings';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -182,8 +182,6 @@ async function processVideoInBackground(videoId: string, collectionName: string)
       throw new Error('Video not found');
     }
 
-    const projectId = video.projectId;
-
     // Step 1: Extract audio
     await updateStatus('EXTRACTING_AUDIO');
 
@@ -208,12 +206,22 @@ async function processVideoInBackground(videoId: string, collectionName: string)
     await updateStatus('TRANSCRIBING');
 
     let transcription = '';
+    let transcriptionData = null;
+    
     try {
+      // Get both regular transcription and timestamped data
+      console.log('Getting regular transcription...');
       transcription = await transcribeAudio(audioPath);
+      
+      console.log('Getting timestamped transcription...');
+      transcriptionData = await transcribeAudioWithTimestamps(audioPath);
       
       await prisma.video.update({
         where: { id: videoId },
-        data: { transcription: transcription }
+        data: { 
+          transcription: transcription,
+          transcriptionData: JSON.stringify(transcriptionData)
+        }
       });
     } catch (transcriptionError) {
       console.error('Transcription failed:', transcriptionError);

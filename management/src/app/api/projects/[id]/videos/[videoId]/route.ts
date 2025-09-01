@@ -49,10 +49,21 @@ export async function GET(
       }
     }
 
+    // Parse transcription data if it exists
+    let transcriptionData = null;
+    if (video.transcriptionData) {
+      try {
+        transcriptionData = JSON.parse(video.transcriptionData);
+      } catch (error) {
+        console.error('Error parsing transcription data:', error);
+      }
+    }
+
     return NextResponse.json({ 
       video: {
         ...video,
-        tutorialSteps
+        tutorialSteps,
+        transcriptionData
       }
     });
   } catch (error) {
