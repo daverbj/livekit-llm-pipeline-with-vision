@@ -98,7 +98,8 @@ export function AgentControlBar({
     <div
       aria-label="Voice assistant controls"
       className={cn(
-        'bg-background border-bg2 dark:border-separator1 flex flex-col rounded-[31px] border p-3 drop-shadow-md/3',
+        'glass-strong rounded-2xl p-4 shadow-2xl border border-white/10 backdrop-blur-xl',
+        'bg-gradient-to-r from-slate-800/80 to-slate-900/60',
         className
       )}
       {...props}
@@ -114,12 +115,12 @@ export function AgentControlBar({
           <div className="flex h-8 w-full">
             <ChatInput onSend={handleSendMessage} disabled={isInputDisabled} className="w-full" />
           </div>
-          <hr className="border-bg2 my-3" />
+          <hr className="border-white/10 my-3" />
         </div>
       )}
 
-      <div className="flex flex-row justify-between gap-1">
-        <div className="flex gap-1">
+      <div className="flex flex-row justify-between gap-3">
+        <div className="flex gap-2">
           {visibleControls.microphone && (
             <div className="flex items-center gap-0">
               <TrackToggle
@@ -128,35 +129,35 @@ export function AgentControlBar({
                 pressed={microphoneToggle.enabled}
                 disabled={microphoneToggle.pending}
                 onPressedChange={microphoneToggle.toggle}
-                className="peer/track group/track relative w-auto pr-3 pl-3 md:rounded-r-none md:border-r-0 md:pr-2"
+                className="peer/track group/track relative w-auto pr-4 pl-4 md:rounded-r-none md:border-r-0 md:pr-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 data-[state=off]:from-red-600 data-[state=off]:to-red-700 border-slate-500/30 data-[state=off]:border-red-500/30 shadow-lg transition-all duration-300"
               >
                 <BarVisualizer
                   barCount={3}
                   trackRef={micTrackRef}
-                  options={{ minHeight: 5 }}
-                  className="flex h-full w-auto items-center justify-center gap-0.5"
+                  options={{ minHeight: 8 }}
+                  className="flex h-full w-auto items-center justify-center gap-1"
                 >
                   <span
                     className={cn([
-                      'h-full w-0.5 origin-center rounded-2xl',
-                      'group-data-[state=on]/track:bg-fg1 group-data-[state=off]/track:bg-destructive-foreground',
-                      'data-lk-muted:bg-muted',
+                      'h-full w-1 origin-center rounded-full transition-all duration-300',
+                      'group-data-[state=on]/track:bg-white group-data-[state=off]/track:bg-white',
+                      'data-[lk-highlighted=true]:bg-gradient-to-t data-[lk-highlighted=true]:from-blue-400 data-[lk-highlighted=true]:to-blue-500',
+                      'data-lk-muted:bg-slate-400',
                     ])}
                   ></span>
                 </BarVisualizer>
               </TrackToggle>
-              <hr className="bg-separator1 peer-data-[state=off]/track:bg-separatorSerious relative z-10 -mr-px hidden h-4 w-px md:block" />
+              <hr className="bg-white/20 peer-data-[state=off]/track:bg-red-500/50 relative z-10 -mr-px hidden h-6 w-px md:block" />
               <DeviceSelect
                 size="sm"
                 kind="audioinput"
                 onMediaDeviceError={onMicrophoneDeviceSelectError}
                 onActiveDeviceChange={handleAudioDeviceChange}
                 className={cn([
-                  'pl-2',
-                  'peer-data-[state=off]/track:text-destructive-foreground',
-                  'hover:text-fg1 focus:text-fg1',
-                  'hover:peer-data-[state=off]/track:text-destructive-foreground focus:peer-data-[state=off]/track:text-destructive-foreground',
-                  'hidden rounded-l-none md:block',
+                  'pl-3 text-white bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800',
+                  'peer-data-[state=off]/track:text-white',
+                  'hover:text-white focus:text-white border-slate-500/30',
+                  'hidden rounded-l-none md:block shadow-lg',
                 ])}
               />
             </div>
@@ -171,19 +172,18 @@ export function AgentControlBar({
                 pending={cameraToggle.pending}
                 disabled={cameraToggle.pending}
                 onPressedChange={cameraToggle.toggle}
-                className="peer/track relative w-auto rounded-r-none pr-3 pl-3 disabled:opacity-100 md:border-r-0 md:pr-2"
+                className="peer/track relative w-auto rounded-r-none pr-4 pl-4 disabled:opacity-100 md:border-r-0 md:pr-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 data-[state=off]:from-slate-600 data-[state=off]:to-slate-700 border-blue-500/30 data-[state=off]:border-slate-500/30 shadow-lg transition-all duration-300"
               />
-              <hr className="bg-separator1 peer-data-[state=off]/track:bg-separatorSerious relative z-10 -mr-px hidden h-4 w-px md:block" />
+              <hr className="bg-white/20 peer-data-[state=off]/track:bg-slate-500/50 relative z-10 -mr-px hidden h-6 w-px md:block" />
               <DeviceSelect
                 size="sm"
                 kind="videoinput"
                 onMediaDeviceError={onCameraDeviceSelectError}
                 onActiveDeviceChange={handleVideoDeviceChange}
                 className={cn([
-                  'pl-2',
-                  'peer-data-[state=off]/track:text-destructive-foreground',
-                  'hover:text-fg1 focus:text-fg1',
-                  'hover:peer-data-[state=off]/track:text-destructive-foreground focus:peer-data-[state=off]/track:text-destructive-foreground',
+                  'pl-3 text-white bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800',
+                  'peer-data-[state=off]/track:text-white border-slate-500/30',
+                  'hover:text-white focus:text-white shadow-lg',
                   'rounded-l-none',
                 ])}
               />
@@ -198,7 +198,7 @@ export function AgentControlBar({
                 pressed={screenShareToggle.enabled}
                 disabled={screenShareToggle.pending}
                 onPressedChange={screenShareToggle.toggle}
-                className="relative w-auto"
+                className="relative w-auto bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 data-[state=off]:from-slate-600 data-[state=off]:to-slate-700 border-purple-500/30 data-[state=off]:border-slate-500/30 shadow-lg transition-all duration-300 text-white"
               />
             </div>
           )}
@@ -210,7 +210,7 @@ export function AgentControlBar({
               pressed={chatOpen}
               onPressedChange={setChatOpen}
               disabled={!isAgentAvailable}
-              className="aspect-square h-full"
+              className="aspect-square h-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 data-[state=on]:from-indigo-700 data-[state=on]:to-indigo-800 border-indigo-500/30 shadow-lg transition-all duration-300 text-white"
             >
               <ChatTextIcon weight="bold" />
             </Toggle>
@@ -221,11 +221,11 @@ export function AgentControlBar({
             variant="destructive"
             onClick={onLeave}
             disabled={isDisconnecting}
-            className="font-mono"
+            className="font-semibold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 border-red-500/30 shadow-lg transition-all duration-300 text-white px-6"
           >
             <PhoneDisconnectIcon weight="bold" />
-            <span className="hidden md:inline">END CALL</span>
-            <span className="inline md:hidden">END</span>
+            <span className="hidden md:inline ml-2">END CALL</span>
+            <span className="inline md:hidden ml-2">END</span>
           </Button>
         )}
       </div>
