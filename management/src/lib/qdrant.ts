@@ -39,7 +39,7 @@ export function normalizeCollectionName(name: string): string {
 }
 
 // Create a collection for a project
-export async function createProjectCollection(projectName: string): Promise<void> {
+export async function createProjectCollection(projectName: string, vectorSize: number = 1024): Promise<void> {
   try {
     const normalizedName = normalizeCollectionName(projectName);
     
@@ -54,11 +54,12 @@ export async function createProjectCollection(projectName: string): Promise<void
       return;
     }
 
-    // Create the collection with vector configuration for BGE large model
-    // Using 1024 dimensions for BGE large model (BAAI/bge-large-en-v1.5)
+    // Create the collection with vector configuration
+    // Default to 1024 dimensions (compatible with most embedding models)
+    // But allow dynamic sizing based on the embedding model used
     await qdrantClient.createCollection(normalizedName, {
       vectors: {
-        size: 1024,
+        size: vectorSize,
         distance: 'Cosine',
       },
       optimizers_config: {
@@ -67,7 +68,7 @@ export async function createProjectCollection(projectName: string): Promise<void
       replication_factor: 1,
     });
 
-    console.log(`Created Qdrant collection: ${normalizedName} (from "${projectName}")`);
+    console.log(`Created Qdrant collection: ${normalizedName} (from "${projectName}") with vector size ${vectorSize}`);
   } catch (error) {
     console.error(`Failed to create Qdrant collection "${projectName}":`, error);
     throw error;

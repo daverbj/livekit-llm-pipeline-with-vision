@@ -1,52 +1,52 @@
-import { HfInference } from '@huggingface/inference';
 import { hashStringToInt } from './hash-utils';
 
-// Initialize with error handling
-let hf: HfInference | null = null;
-try {
-  if (process.env.HF_API_TOKEN) {
-    hf = new HfInference(process.env.HF_API_TOKEN);
-  }
-} catch (error) {
-  console.warn('Failed to initialize HuggingFace client:', error);
-}
+// Ollama configuration
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_EMBEDDING_MODEL = process.env.OLLAMA_EMBEDDING_MODEL || 'mxbai-embed-large';
 
 /**
- * Generate embeddings using BGE Large model
+ * Generate embeddings using Ollama embedding model
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    if (!process.env.HF_API_TOKEN) {
-      throw new Error('HF_API_TOKEN environment variable is missing. Please add your HuggingFace API token to the .env file.');
-    }
+    console.log('Generating embedding for text using Ollama:', text.substring(0, 100) + '...');
 
-    if (!hf) {
-      throw new Error('HuggingFace client not initialized. Please check HF_API_TOKEN environment variable.');
-    }
-
-    console.log('Generating embedding for text:', text.substring(0, 100) + '...');
-
-    const response = await hf.featureExtraction({
-      model: 'BAAI/bge-large-en-v1.5',
-      inputs: text,
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OLLAMA_EMBEDDING_MODEL,
+        prompt: text,
+      }),
     });
 
-    console.log('HuggingFace response type:', typeof response, 'isArray:', Array.isArray(response));
-
-    // The response should be a number array for single input
-    if (Array.isArray(response) && Array.isArray(response[0])) {
-      return response[0] as number[];
-    } else if (Array.isArray(response)) {
-      return response as number[];
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
     }
 
-    throw new Error('Unexpected response format from embedding model');
-  } catch (error) {
-    console.error('Error generating embedding:', error);
+    const data = await response.json();
     
-    // For development: return a dummy embedding vector of correct size (1024 dimensions)
+    if (!data.embedding || !Array.isArray(data.embedding)) {
+      throw new Error('Unexpected response format from Ollama embedding model');
+    }
+
+    const embedding = data.embedding;
+    console.log('Ollama embedding generated:', { 
+      length: embedding.length, 
+      model: OLLAMA_EMBEDDING_MODEL,
+      firstFew: embedding.slice(0, 5) 
+    });
+
+    return embedding;
+  } catch (error) {
+    console.error('Error generating embedding with Ollama:', error);
+    
+    // For development: return a dummy embedding vector
+    // Note: mxbai-embed-large produces 1024-dimensional embeddings
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Using dummy embedding vector for development');
+      console.warn('Using dummy embedding vector for development (1024 dimensions)');
       return new Array(1024).fill(0).map(() => Math.random() - 0.5);
     }
     
@@ -69,14 +69,6 @@ export async function storeVideoInQdrant(
     const { qdrantClient, normalizeCollectionName, createProjectCollection } = await import('./qdrant');
     const normalizedCollectionName = normalizeCollectionName(collectionName);
 
-    // Ensure collection exists
-    try {
-      await qdrantClient.getCollection(normalizedCollectionName);
-    } catch (error) {
-      console.log(`Collection ${normalizedCollectionName} doesn't exist, creating it...`);
-      await createProjectCollection(collectionName);
-    }
-
     // Generate embedding for the video description only
     const embedding = await generateEmbedding(description);
     console.log('Generated embedding:', { 
@@ -86,14 +78,23 @@ export async function storeVideoInQdrant(
     });
 
     // Validate embedding
-    if (!Array.isArray(embedding) || embedding.length !== 1024) {
-      throw new Error(`Invalid embedding: expected array of 1024 numbers, got ${typeof embedding} with length ${embedding.length}`);
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      throw new Error(`Invalid embedding: expected non-empty array, got ${typeof embedding} with length ${embedding.length}`);
     }
 
     // Validate all values are numbers
     const hasNonNumbers = embedding.some(val => typeof val !== 'number' || isNaN(val));
     if (hasNonNumbers) {
       throw new Error('Embedding contains non-numeric values');
+    }
+
+    // Ensure collection exists
+    try {
+      await qdrantClient.getCollection(normalizedCollectionName);
+    } catch (error) {
+      console.log(`Collection ${normalizedCollectionName} doesn't exist, creating it...`);
+      // Create collection with dynamic vector size based on the actual embedding
+      await createProjectCollection(collectionName, embedding.length);
     }
 
     // Store the video content with metadata
