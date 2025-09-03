@@ -71,6 +71,8 @@ class Assistant(Agent):
         self._tasks = []
         self._current_audio_buffer = []  # Store current audio session
         self._current_audio_session_id = None
+        self.selected_project_id = None
+        self.selected_project_name = None
         super().__init__(instructions="""
                         You are a helpful voice AI assistant.
                         You have to guide user to resolve their issues.
@@ -122,14 +124,25 @@ class Assistant(Agent):
         
 
     async def on_enter(self):
-        self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
         room = get_job_context().room
         _active_tasks = set()
-
+        self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
         async def async_handle_text_stream(reader, participant_identity):
             info = reader.info
             text = await reader.read_all()
             print(f"Received text: {text}")
+            try:
+                import json
+                project_config = json.loads(text)
+                self.selected_project_id = project_config.get('id')
+                self.selected_project_name = project_config.get('name')
+                logger.info(f"Project ID set to: {self.selected_project_id}")
+                logger.info(f"Project Name: {self.selected_project_name}")
+                logger.info(f"Project Description: {project_config.get('description', 'No description')}")
+            except (json.JSONDecodeError, Exception) as e:
+                logger.error(f"Failed to parse project config: {e}")
+                # Keep project ID as None if parsing fails
+                self.selected_project_id = None
 
         def handle_text_stream(reader, participant_identity):
             task = asyncio.create_task(async_handle_text_stream(reader, participant_identity))
@@ -161,7 +174,7 @@ class Assistant(Agent):
         def on_participant_disconnected(participant: rtc.RemoteParticipant):
             logger.info(f"Participant disconnected: {participant.identity}")
             asyncio.create_task(self._cleanup_participant_streams(participant.identity))
-    
+
     async def on_exit(self):
         """Called when the agent session ends"""
         logger.info("Agent session ending, saving any pending audio")
