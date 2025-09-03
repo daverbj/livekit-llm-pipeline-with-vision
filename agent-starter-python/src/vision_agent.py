@@ -138,7 +138,7 @@ class Assistant(Agent):
             task.add_done_callback(lambda t: _active_tasks.remove(t))
 
         room.register_text_stream_handler(
-            "my-topic",
+            "project-config",
             handle_text_stream
         )
         # Handle existing participants
