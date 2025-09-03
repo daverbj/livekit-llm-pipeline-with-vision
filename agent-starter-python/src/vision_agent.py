@@ -120,29 +120,6 @@ class Assistant(Agent):
         ):
             yield chunk_content
         
-        # LangGraph ReAct processor (commented out)
-        # async for chunk_content in process_langgraph_react_chat(
-        #     chat_ctx, 
-        #     model=ChatOllama(
-        #         model="gemma3:4b",
-        #         temperature=0.7
-        #     ),
-        # ):
-        #     yield chunk_content
-        
-        # Original LangGraph processor (commented out - doesn't work with Gemma3)
-        # async for chunk_content in process_langgraph_chat(
-        #     chat_ctx, 
-        #     model=ChatOllama(
-        #         model="gemma3:4b",
-        #         streaming=True
-        #     )
-        # ):
-        #     yield chunk_content
-        
-        # Original OpenAI processor (commented out)
-        # async for chunk_content in process_openai_chat(chat_ctx, base_url="http://209.170.80.132:18084/v1", model="google/gemma-3-12b-it", session=self.session):
-        #     yield chunk_content
 
     async def on_enter(self):
         self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
