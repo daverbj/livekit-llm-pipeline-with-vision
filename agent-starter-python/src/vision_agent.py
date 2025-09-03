@@ -128,7 +128,6 @@ class Assistant(Agent):
 
         async def async_handle_text_stream(reader, participant_identity):
             info = reader.info
-            # Option 2: Get the entire text after the stream completes.
             text = await reader.read_all()
             print(f"Received text: {text}")
 

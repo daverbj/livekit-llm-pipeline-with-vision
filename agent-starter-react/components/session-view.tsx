@@ -96,6 +96,26 @@ export const SessionView = ({
     }
   }, [agentState, sessionStarted, room]);
 
+  // Send project configuration when agent is connected and available
+  useEffect(() => {
+    if (isAgentAvailable(agentState) && selectedProject && room?.localParticipant && room.state === 'connected') {
+      const projectConfig = {
+        id: selectedProject.id,
+        name: selectedProject.name,
+        description: selectedProject.description,
+      };
+
+      // Send project configuration
+      room.localParticipant.sendText(JSON.stringify(projectConfig), {
+        topic: 'project-config',
+      }).then((info) => {
+        console.log(`Sent project config with stream ID: ${info.id}`, projectConfig);
+      }).catch((error) => {
+        console.error('Failed to send project config:', error);
+      });
+    }
+  }, [agentState, selectedProject, room]);
+
   const { supportsChatInput, supportsVideoInput, supportsScreenShare } = appConfig;
   const capabilities = {
     supportsChatInput,
