@@ -109,8 +109,6 @@ async def process_openai_chat(
                 "role": role,
                 "content": content_blocks
             })
-    session.say(text="Give me a moment please")
-    # Second pass: merge consecutive messages with the same role
     i = 0
     while i < len(raw_messages):
         current_msg = raw_messages[i]

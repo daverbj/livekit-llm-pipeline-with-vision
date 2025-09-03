@@ -7,9 +7,13 @@ from dotenv import load_dotenv
 import base64
 import asyncio
 import uuid
+import json
+import aiohttp
 from openai import OpenAI
 from livekit.plugins import google
 from livekit.plugins import groq
+from utils.gemma_processor_ollama import process_gemma_ollama_chat
+from utils.tools import get_context
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -63,7 +67,7 @@ from utils.bedrock_processor import process_bedrock_chat
 from utils.openai_processor import process_openai_chat
 from utils.langgraph_processor import process_langgraph_chat
 from utils.lg_react_agent_processor import process_langgraph_react_chat
-from utils.gemma_processor_ollama import process_gemma_ollama_chat
+
 class Assistant(Agent):
     def __init__(self) -> None:
         self._latest_frame = None
@@ -73,38 +77,7 @@ class Assistant(Agent):
         self._current_audio_session_id = None
         self.selected_project_id = None
         self.selected_project_name = None
-        super().__init__(instructions="""
-                        You are a helpful voice AI assistant.
-                        You have to guide user to resolve their issues.
-                        Your response should be **one step at a time**.
-                        User always provides you the latest screenshot of his screen.
-                        You must analyse the screen and answer user based on the current screen situation.
-                        Response user as if you are a human in a call so do not format your answer, it should be raw text only.
-                        You have access to functions. If you decide to invoke any of the function(s),
-                        You MUST put it in the format of
-                        <tool_call>
-                        {"name": function name, "parameters": dictionary of argument name and its value}
-                        </tool_call>
-                        You SHOULD NOT include any other text in the response if you call a function.
-                        **Available functions**
-                        [
-                            {
-                                "name": "get_weather",
-                                "description": "Finds the current weather by location",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "location": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "location"
-                                    ]
-                                }
-                            }
-                        ]
-                """)
+        super().__init__(instructions="""You are a helpful voice AI assistant.""")
 
     async def llm_node(
         self,
@@ -118,7 +91,8 @@ class Assistant(Agent):
         async for chunk_content in process_gemma_ollama_chat(
             chat_ctx, 
             model="gemma3:12b",
-            ollama_url="http://localhost:11434/api/chat"
+            ollama_url="http://localhost:11434/api/chat",
+            project_name=self.selected_project_name
         ):
             yield chunk_content
         
@@ -294,6 +268,12 @@ class Assistant(Agent):
         task.add_done_callback(lambda t: self._tasks.remove(t) if t in self._tasks else None)
         self._tasks.append(task)
         logger.info(f"Video stream task created. Total tasks: {len(self._tasks)}")
+
+    async def _on_participant_connected(self, participant):
+        logger.info(f"Participant connected: {participant.identity}")
+
+    async def _on_participant_disconnected(self, participant):
+        logger.info(f"Participant disconnected: {participant.identity}")
 
 
 async def entrypoint(ctx: JobContext):

@@ -2,8 +2,11 @@ import json
 import logging
 import base64
 import aiohttp
+import os
+import re
 from typing import AsyncIterable
 from livekit.agents import llm
+from .tools import get_context
 
 logger = logging.getLogger("gemma-ollama-processor")
 
@@ -11,7 +14,8 @@ logger = logging.getLogger("gemma-ollama-processor")
 async def process_gemma_ollama_chat(
     chat_ctx: llm.ChatContext,
     model: str = "gemma3:4b",
-    ollama_url: str = "http://localhost:11434/api/chat"
+    ollama_url: str = "http://localhost:11434/api/chat",
+    project_name: str = None
 ) -> AsyncIterable[str]:
     """
     Process chat context with Ollama for Gemma models, handling system messages properly.
@@ -29,6 +33,42 @@ async def process_gemma_ollama_chat(
     # Convert chat context to Ollama format for Gemma
     messages = []
     system_content = ""
+    
+    # Add the detailed instructions about get_context function as system content
+    function_instructions = """
+IMPORTANT: Always get context based on user query first by calling "get_context" function.
+IMPORTANT: Do not answer any query without context.
+You have to guide user to resolve their issues.                        
+Your response should be **one step at a time**.
+User always provides you the latest screenshot of his screen.
+You must analyse the screen and answer user based on the current screen situation.
+Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+You have access to functions. If you decide to invoke any of the function(s),
+You MUST put it in the format of
+<function_call>
+{"name": function name, "parameters": dictionary of argument name and its value}
+</function_call>
+You SHOULD NOT include any other text in the response if you call a function.
+**Available functions**
+[
+    {
+        "name": "get_context",
+        "description": "Finds context based on user query",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "query"
+            ]
+        }
+    }
+]
+"""
+    system_content += function_instructions.strip() + " "
     
     # Find the index of the last message (most recent)
     last_message_index = len(chat_ctx.items) - 1
@@ -177,6 +217,8 @@ async def process_gemma_ollama_chat(
                 headers={"Content-Type": "application/json"}
             ) as response:
                 if response.status == 200:
+                    response_buffer = ""
+                    
                     async for line in response.content:
                         if line:
                             try:
@@ -186,8 +228,23 @@ async def process_gemma_ollama_chat(
                                     if "message" in data and "content" in data["message"]:
                                         chunk_content = data["message"]["content"]
                                         if chunk_content:
-                                            # Just yield the text content directly
-                                            yield chunk_content
+                                            response_buffer += chunk_content
+                                            
+                                            # If we don't have a function call yet, stream normally
+                                            if "<function_call>" not in response_buffer:
+                                                yield chunk_content
+                                            else:
+                                                # We detected start of function call, check if it's complete
+                                                if "</function_call>" in response_buffer:
+                                                    # Function call is complete, process it
+                                                    logger.info("Function call detected and complete, processing...")
+                                                    function_result = await process_function_call(response_buffer, project_name)
+                                                    if function_result:
+                                                        yield function_result
+                                                    # Clear buffer after processing
+                                                    response_buffer = ""
+                                                # If function call is not complete, don't yield anything yet
+                                                # This creates a minimal delay only for function calls
                             except json.JSONDecodeError:
                                 continue
                             except Exception as e:
@@ -201,3 +258,54 @@ async def process_gemma_ollama_chat(
         logger.error(f"Error calling Ollama: {e}")
         # Fallback response
         yield "I'm experiencing technical difficulties."
+
+
+async def process_function_call(content: str, project_name: str = None) -> str:
+    """
+    Process function calls from LLM response
+    
+    Args:
+        content: The content containing function call
+        project_name: Current project name for context
+        
+    Returns:
+        Function result or empty string if no function call
+    """
+    try:
+        # Extract function call from content
+        import re
+        # More robust pattern to handle streamed content with potential whitespace/newlines
+        function_call_pattern = r'<function_call>\s*(\{.*?\})\s*</function_call>'
+        match = re.search(function_call_pattern, content, re.DOTALL | re.MULTILINE)
+        
+        if not match:
+            logger.warning("No function call pattern found in content")
+            return ""
+        
+        function_call_json = match.group(1)
+        # Clean up potential streaming artifacts
+        function_call_json = re.sub(r'\s+', ' ', function_call_json)  # Replace multiple spaces/newlines with single space
+        function_call_json = function_call_json.strip()
+        
+        logger.info(f"Extracted function call JSON: {function_call_json}")
+        
+        function_call = json.loads(function_call_json)
+        
+        function_name = function_call.get("name")
+        parameters = function_call.get("parameters", {})
+        
+        logger.info(f"Processing function call: {function_name} with params: {parameters}")
+        
+        if function_name == "get_context":
+            query = parameters.get("query", "")
+            if query:
+                context_result = await get_context(query, project_name)
+                return f"Context found: {context_result}"
+            else:
+                return "Error: No query provided for context search"
+        else:
+            return f"Error: Unknown function '{function_name}'"
+            
+    except Exception as e:
+        logger.error(f"Error processing function call: {e}")
+        return f"Error processing function call: {str(e)}"
