@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Track } from 'livekit-client';
+import { FolderOpen } from '@phosphor-icons/react';
 import {
   type AgentState,
   type ReceivedChatMessage,
@@ -11,6 +12,7 @@ import {
 } from '@livekit/components-react';
 import { toastAlert } from '@/components/alert-toast';
 import { DebugPanel } from '@/components/debug-panel';
+import { UserProfile } from '@/components/user-profile';
 import { AgentControlBar } from '@/components/livekit/agent-control-bar/agent-control-bar';
 import { ChatEntry } from '@/components/livekit/chat/chat-entry';
 import { ChatMessageView } from '@/components/livekit/chat/chat-message-view';
@@ -18,6 +20,7 @@ import { MediaTiles } from '@/components/livekit/media-tiles';
 import useChatAndTranscription from '@/hooks/useChatAndTranscription';
 import { useDebugMode } from '@/hooks/useDebug';
 import type { AppConfig } from '@/lib/types';
+import type { Project } from '@/hooks/useProjects';
 import { cn } from '@/lib/utils';
 
 function isAgentAvailable(agentState: AgentState) {
@@ -26,12 +29,14 @@ function isAgentAvailable(agentState: AgentState) {
 
 interface SessionViewProps {
   appConfig: AppConfig;
+  selectedProject: Project | null;
   disabled: boolean;
   sessionStarted: boolean;
 }
 
 export const SessionView = ({
   appConfig,
+  selectedProject,
   disabled,
   sessionStarted,
   ref,
@@ -108,6 +113,21 @@ export const SessionView = ({
         'relative min-h-screen bg-gradient-to-br from-slate-900 to-slate-800'
       )}
     >
+      {/* User Profile in top-right corner */}
+      <div className="absolute top-4 right-4 z-30">
+        <UserProfile />
+      </div>
+
+      {/* Project indicator in top-left corner */}
+      {selectedProject && (
+        <div className="absolute top-4 left-4 z-30">
+          <div className="flex items-center space-x-2 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white">
+            <FolderOpen size={16} className="text-blue-300" />
+            <span className="text-sm font-medium">{selectedProject.name}</span>
+          </div>
+        </div>
+      )}
+
       <ChatMessageView
         className={cn(
           'mx-auto min-h-svh w-full max-w-2xl px-3 pt-8 pb-40 transition-[opacity,translate] duration-300 ease-out md:px-0 md:pt-12 md:pb-48 relative z-10',

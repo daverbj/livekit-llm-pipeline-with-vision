@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { UserProfile } from '@/components/user-profile';
+import { ProjectSelector } from '@/components/project-selector';
+import type { Project } from '@/hooks/useProjects';
 
 interface WelcomeProps {
   disabled: boolean;
   startButtonText: string;
-  onStartCall: () => void;
+  onStartCall: (project?: Project) => void;
 }
 
 export const Welcome = ({
@@ -12,6 +16,12 @@ export const Welcome = ({
   onStartCall,
   ref,
 }: React.ComponentProps<'div'> & WelcomeProps) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  const handleStartCall = () => {
+    onStartCall(selectedProject || undefined);
+  };
+
   return (
     <div
       ref={ref}
@@ -19,6 +29,11 @@ export const Welcome = ({
       className="fixed inset-0 z-10 mx-auto flex h-svh flex-col items-center justify-center text-center overflow-hidden"
       style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
     >
+      {/* User Profile in top-right corner */}
+      <div className="absolute top-4 right-4 z-20">
+        <UserProfile />
+      </div>
+
       {/* Sophisticated Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.1),transparent_50%)]" />
@@ -72,12 +87,21 @@ export const Welcome = ({
         </div>
 
         {/* Enhanced Start Button */}
-        <div className="mb-8">
+        <div className="mb-8 space-y-4">
+          {/* Project Selector */}
+          <div className="flex justify-center">
+            <ProjectSelector
+              selectedProject={selectedProject}
+              onProjectSelect={setSelectedProject}
+            />
+          </div>
+
           <Button 
             variant="primary" 
             size="lg" 
-            onClick={onStartCall} 
-            className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-8 py-4 rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 hover:scale-105 active:scale-95 font-semibold border border-blue-500/20 text-lg min-w-[280px]"
+            onClick={handleStartCall} 
+            disabled={!selectedProject}
+            className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white px-8 py-4 rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 hover:scale-105 active:scale-95 font-semibold border border-blue-500/20 text-lg min-w-[280px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative flex items-center justify-center gap-3">

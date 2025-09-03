@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { Welcome } from '@/components/welcome';
 import useConnectionDetails from '@/hooks/useConnectionDetails';
 import type { AppConfig } from '@/lib/types';
+import type { Project } from '@/hooks/useProjects';
 
 const MotionWelcome = motion.create(Welcome);
 const MotionSessionView = motion.create(SessionView);
@@ -21,6 +22,7 @@ interface AppProps {
 export function App({ appConfig }: AppProps) {
   const room = useMemo(() => new Room(), []);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const { refreshConnectionDetails, existingOrRefreshConnectionDetails } = useConnectionDetails();
 
   useEffect(() => {
@@ -81,7 +83,12 @@ export function App({ appConfig }: AppProps) {
       <MotionWelcome
         key="welcome"
         startButtonText={startButtonText}
-        onStartCall={() => setSessionStarted(true)}
+        onStartCall={(project?: Project) => {
+          if (project) {
+            setSelectedProject(project);
+            setSessionStarted(true);
+          }
+        }}
         disabled={sessionStarted}
         initial={{ opacity: 0 }}
         animate={{ opacity: sessionStarted ? 0 : 1 }}
@@ -95,6 +102,7 @@ export function App({ appConfig }: AppProps) {
         <MotionSessionView
           key="session-view"
           appConfig={appConfig}
+          selectedProject={selectedProject}
           disabled={!sessionStarted}
           sessionStarted={sessionStarted}
           initial={{ opacity: 0 }}
