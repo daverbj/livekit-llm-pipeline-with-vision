@@ -122,7 +122,7 @@ def normalize_collection_name(project_name: str) -> str:
     return normalized
 
 
-async def get_context(query: str, project_name: str = None) -> str:
+async def get_context_qdrant(query: str, project_name: str = None) -> str:
     """
     Get relevant context from the project's knowledge base using similarity search
     
@@ -160,7 +160,7 @@ async def get_context(query: str, project_name: str = None) -> str:
                     context_text += f"<description>\n{description}\n"
                 
                 if tutorial_steps:
-                    context_text += "-----------------------\n<tutorialSteps>\n"
+                    context_text += "-----------------------\nSteps\n"
                     for step in tutorial_steps:
                         context_text += f"{step}\n"
                 

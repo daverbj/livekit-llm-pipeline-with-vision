@@ -4,74 +4,51 @@ from typing import AsyncIterable, Dict, Any, List
 from livekit.agents import llm
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from typing_extensions import TypedDict, Annotated
-
+from .tools import get_context_qdrant
 logger = logging.getLogger("langgraph-processor")
-
-
-@tool
-def get_weather(location: str) -> str:
-    """Get current weather information for a given location.
-    
-    Args:
-        location: The city or location to get weather for
-        
-    Returns:
-        Weather information as a string
-    """
-    # Hardcoded weather data for demonstration
-    weather_data = {
-        "temperature": "22°C",
-        "condition": "Partly Cloudy", 
-        "humidity": "65%",
-        "wind": "10 km/h SW",
-        "feels_like": "24°C"
-    }
-    
-    weather_report = f"""Weather for {location}:
-🌤️ Temperature: {weather_data['temperature']} (feels like {weather_data['feels_like']})
-☁️ Conditions: {weather_data['condition']}
-💧 Humidity: {weather_data['humidity']}
-💨 Wind: {weather_data['wind']}"""
-    
-    logger.info(f"Weather requested for {location}")
-    return weather_report
-
 
 class ChatState(TypedDict):
     """State for the chatbot graph."""
     messages: Annotated[List, add_messages]
     response: str
 
+@tool
+async def get_context(query: str) -> str:
+    """Get context based on the user's query."""
+    return await get_context_qdrant(query=query, project_name="hubspot")
 
 class LangGraphChatbot:
     """Simple LangGraph-based chatbot processor with tools."""
-    
-    def __init__(self, model: BaseLanguageModel = None):
+
+    def __init__(self, model: BaseLanguageModel = None, project_name: str = None, session = None):
         """
         Initialize the LangGraph chatbot.
         
         Args:
-            model: The language model to use. Defaults to OpenAI GPT-3.5-turbo
+            model: The language model to use. Defaults to OpenAI gpt-4o
+            project_name: Name of the project for context retrieval
+            session: Session information for thread management
         """
-        self.model = model or ChatOpenAI(
-            model="gpt-3.5-turbo",
-            temperature=0.7,
-            streaming=True
-        )
-        
+        self.model = model
+        self.project_name = project_name
+        self.session = session
         # Define available tools
-        self.tools = [get_weather]
-        
+        self.tools = [get_context]
+
         # Bind tools to the model
         self.model_with_tools = self.model.bind_tools(self.tools)
         
+        # Create memory for persistent checkpointing
+        self.memory = InMemorySaver()
+        
         self.graph = self._create_graph()
-    
+        
     def _create_graph(self) -> StateGraph:
         """Create the LangGraph conversation graph with tool support."""
         
@@ -94,7 +71,7 @@ class LangGraphChatbot:
                     "response": error_msg
                 }
         
-        def tool_node(state: ChatState) -> Dict[str, Any]:
+        async def tool_node(state: ChatState) -> Dict[str, Any]:
             """Execute tool calls."""
             messages = state["messages"]
             last_message = messages[-1]
@@ -112,7 +89,19 @@ class LangGraphChatbot:
                     for tool in self.tools:
                         if tool.name == tool_name:
                             try:
-                                tool_result = tool.invoke(tool_args)
+                                # Check if the tool function is async
+                                if hasattr(tool.func, '__call__') and hasattr(tool.func, '__code__'):
+                                    if tool.func.__code__.co_flags & 0x80:  # CO_COROUTINE flag
+                                        tool_result = await tool.ainvoke(tool_args)
+                                    else:
+                                        tool_result = tool.invoke(tool_args)
+                                else:
+                                    # Try async first, fall back to sync
+                                    try:
+                                        tool_result = await tool.ainvoke(tool_args)
+                                    except:
+                                        tool_result = tool.invoke(tool_args)
+                                        
                                 logger.info(f"Tool {tool_name} executed successfully: {tool_result}")
                             except Exception as e:
                                 tool_result = f"Error executing {tool_name}: {str(e)}"
@@ -166,13 +155,17 @@ class LangGraphChatbot:
         # After tools, go back to chat for final response
         workflow.add_edge("tools", "chat")
         
-        return workflow.compile()
+        # Compile with memory checkpointer for persistent conversations
+        return workflow.compile(checkpointer=self.memory)
     
-    async def process_streaming(self, state: ChatState) -> AsyncIterable[str]:
-        """Process chat with streaming response."""
+    async def process_streaming(self, state: ChatState, thread_id: str = "default") -> AsyncIterable[str]:
+        """Process chat with streaming response and persistent memory."""
         try:
-            # Execute the graph
-            result = await self.graph.ainvoke(state)
+            # Create config for this conversation thread
+            config = {"configurable": {"thread_id": thread_id}}
+            
+            # Execute the graph with memory persistence
+            result = await self.graph.ainvoke(state, config=config)
             
             # Get the final response
             messages = result.get("messages", [])
@@ -204,43 +197,86 @@ class LangGraphChatbot:
             logger.error(f"Error in streaming process: {e}")
             yield "I'm experiencing technical difficulties. Please try again."
 
+    def get_conversation_state(self, thread_id: str = "default") -> dict:
+        """Get the current state of a conversation thread."""
+        try:
+            config = {"configurable": {"thread_id": thread_id}}
+            snapshot = self.graph.get_state(config)
+            return {
+                "messages": snapshot.values.get("messages", []),
+                "thread_id": thread_id,
+                "config": snapshot.config,
+                "created_at": snapshot.created_at
+            }
+        except Exception as e:
+            logger.error(f"Error getting conversation state: {e}")
+            return {"messages": [], "thread_id": thread_id}
+
 
 async def process_langgraph_chat(
     chat_ctx: llm.ChatContext,
     model: BaseLanguageModel = None,
-    system_prompt: str = None
+    system_prompt: str = None,
+    project_name: str = None,
+    session = None
 ) -> AsyncIterable[str]:
     """
-    Process chat context with LangGraph chatbot.
+    Process chat context with LangGraph chatbot with persistent memory.
     
     Args:
         chat_ctx: The chat context from livekit
         model: The language model to use
         system_prompt: Optional system prompt to use
+        project_name: Name of the project for context retrieval
+        session: Session information for thread management
         
     Yields:
         str: Text chunks from the chatbot response
     """
     try:
         # Initialize the chatbot
-        chatbot = LangGraphChatbot(model=model)
+        chatbot = LangGraphChatbot(model=model, project_name=project_name, session=session)
+
+        # Generate thread_id from session info if available
+        thread_id = "default"
+        if session:
+            # Use session room name or participant identity as thread_id
+            if hasattr(session, 'room') and hasattr(session.room, 'name'):
+                thread_id = session.room.name
+            elif hasattr(session, 'participant') and hasattr(session.participant, 'identity'):
+                thread_id = session.participant.identity
+            else:
+                thread_id = str(getattr(session, 'session_id', 'default'))
         
-        # Convert LiveKit chat context to LangChain messages
+        logger.info(f"Using thread_id: {thread_id} for conversation memory")
+
+        # For new conversations, we only add the latest user message
+        # The memory system will handle maintaining conversation history
         messages = []
         
-        # Add system prompt if provided
+        # Add system prompt if provided (only for new conversations)
         if system_prompt:
-            # Enhance system prompt with tool information
+            # Enhanced system prompt with tool information
             enhanced_prompt = f"""{system_prompt}
+            You have to guide user to resolve their issues.
+            Workflow:
+            - For a question or issue, get context first by calling "get_context" function.
+            - Do not answer any query without context.
+            - User provides you the latest screenshot of his screen through continuous screenshare feed.
+            - You must analyse the screen and answer/guide user based on the current screen situation.
 
-You have access to the following tools:
-- get_weather: Get current weather information for any location
-
-Use the weather tool when users ask about weather conditions, temperature, or climate for any city or location."""
+            Rule:
+            Your response should be **one step at a time**.
+            Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+            """
             messages.append(SystemMessage(content=enhanced_prompt))
         
-        # Convert chat context messages
-        # Find the index of the last message (most recent)
+        # Get the current conversation state to see if we have history
+        current_state = chatbot.get_conversation_state(thread_id)
+        existing_messages = current_state.get("messages", [])
+        
+        # Only add new messages that aren't already in the conversation history
+        # Convert chat context messages (usually just the latest user message)
         last_message_index = len(chat_ctx.items) - 1
         
         for idx, msg in enumerate(chat_ctx.items):
@@ -301,7 +337,9 @@ Use the weather tool when users ask about weather conditions, temperature, or cl
             
             # Convert to appropriate message type
             if role == "system":
-                messages.append(SystemMessage(content=content))
+                # Only add system messages if no existing conversation
+                if not existing_messages:
+                    messages.append(SystemMessage(content=content))
             elif role == "user":
                 messages.append(HumanMessage(content=content))
             elif role == "assistant":
@@ -310,14 +348,16 @@ Use the weather tool when users ask about weather conditions, temperature, or cl
                 # Default to human message
                 messages.append(HumanMessage(content=content))
         
-        # Create initial state
+        # Create initial state with new messages
+        # The memory system will merge these with existing conversation history
         initial_state = ChatState(
             messages=messages,
             response=""
         )
         
         # Debug logging
-        logger.info(f"Processing {len(messages)} messages with LangGraph (images only in last message)")
+        logger.info(f"Processing {len(messages)} new messages with LangGraph memory (thread: {thread_id})")
+        logger.info(f"Existing conversation has {len(existing_messages)} messages")
         
         # Log message types for debugging
         for i, msg in enumerate(messages):
@@ -325,12 +365,12 @@ Use the weather tool when users ask about weather conditions, temperature, or cl
                 if isinstance(msg.content, list):
                     content_types = [item.get('type', 'unknown') for item in msg.content if isinstance(item, dict)]
                     has_images = 'image_url' in content_types
-                    logger.debug(f"Message {i} ({msg.__class__.__name__}): {len(msg.content)} items - types: {content_types} {'(has images)' if has_images else ''}")
+                    logger.debug(f"New message {i} ({msg.__class__.__name__}): {len(msg.content)} items - types: {content_types} {'(has images)' if has_images else ''}")
                 else:
-                    logger.debug(f"Message {i} ({msg.__class__.__name__}): text content")
+                    logger.debug(f"New message {i} ({msg.__class__.__name__}): text content")
         
-        # Stream the response
-        async for chunk in chatbot.process_streaming(initial_state):
+        # Stream the response with persistent memory
+        async for chunk in chatbot.process_streaming(initial_state, thread_id=thread_id):
             if chunk:
                 yield chunk
                 

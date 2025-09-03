@@ -6,14 +6,14 @@ import os
 import re
 from typing import AsyncIterable
 from livekit.agents import llm
-from .tools import get_context
+from .tools import get_context_qdrant
 
 logger = logging.getLogger("gemma-ollama-processor")
 
 
 async def process_gemma_ollama_chat(
     chat_ctx: llm.ChatContext,
-    model: str = "gemma3:4b",
+    model: str = "gemma3:12b",
     ollama_url: str = "http://localhost:11434/api/chat",
     project_name: str = None
 ) -> AsyncIterable[str]:
@@ -45,9 +45,7 @@ You must analyse the screen and answer user based on the current screen situatio
 Response user as if you are a human in a call so do not format your answer, it should be raw text only.
 You have access to functions. If you decide to invoke any of the function(s),
 You MUST put it in the format of
-<function_call>
-{"name": function name, "parameters": dictionary of argument name and its value}
-</function_call>
+FC:{"name": function name, "parameters": dictionary of argument name and its value}
 You SHOULD NOT include any other text in the response if you call a function.
 **Available functions**
 [
@@ -217,7 +215,8 @@ You SHOULD NOT include any other text in the response if you call a function.
                 headers={"Content-Type": "application/json"}
             ) as response:
                 if response.status == 200:
-                    response_buffer = ""
+                    function_buffer = ""
+                    in_function_call = False
                     
                     async for line in response.content:
                         if line:
@@ -227,24 +226,38 @@ You SHOULD NOT include any other text in the response if you call a function.
                                     data = json.loads(line_text)
                                     if "message" in data and "content" in data["message"]:
                                         chunk_content = data["message"]["content"]
-                                        if chunk_content:
-                                            response_buffer += chunk_content
+                                        
+                                        # Check if we're currently in a function call or starting one
+                                        if "FC" in chunk_content and not in_function_call:
+                                            # Start of function call
+                                            in_function_call = True
+                                            function_buffer = chunk_content
                                             
-                                            # If we don't have a function call yet, stream normally
-                                            if "<function_call>" not in response_buffer:
-                                                yield chunk_content
-                                            else:
-                                                # We detected start of function call, check if it's complete
-                                                if "</function_call>" in response_buffer:
-                                                    # Function call is complete, process it
-                                                    logger.info("Function call detected and complete, processing...")
-                                                    function_result = await process_function_call(response_buffer, project_name)
-                                                    if function_result:
-                                                        yield function_result
-                                                    # Clear buffer after processing
-                                                    response_buffer = ""
-                                                # If function call is not complete, don't yield anything yet
-                                                # This creates a minimal delay only for function calls
+                                            # Check if the function call is complete in this chunk
+                                            if "}" in chunk_content:
+                                                # Complete function call in single chunk
+                                                function_result = await process_function_call(function_buffer, project_name)
+                                                if function_result:
+                                                    yield function_result
+                                                # Reset state
+                                                function_buffer = ""
+                                                in_function_call = False
+                                        elif in_function_call:
+                                            # Continue accumulating function call
+                                            function_buffer += chunk_content
+                                            
+                                            # Check if function call is complete
+                                            if "}" in chunk_content:
+                                                # Function call complete, process it
+                                                function_result = await process_function_call(function_buffer, project_name)
+                                                if function_result:
+                                                    yield function_result
+                                                # Reset state
+                                                function_buffer = ""
+                                                in_function_call = False
+                                        else:
+                                            # Regular content, yield it
+                                            yield chunk_content
                             except json.JSONDecodeError:
                                 continue
                             except Exception as e:
@@ -272,24 +285,52 @@ async def process_function_call(content: str, project_name: str = None) -> str:
         Function result or empty string if no function call
     """
     try:
-        # Extract function call from content
+        # Extract function call from content with FC: format
         import re
-        # More robust pattern to handle streamed content with potential whitespace/newlines
-        function_call_pattern = r'<function_call>\s*(\{.*?\})\s*</function_call>'
-        match = re.search(function_call_pattern, content, re.DOTALL | re.MULTILINE)
         
-        if not match:
-            logger.warning("No function call pattern found in content")
+        # Find the start of FC:
+        fc_start = content.find("FC:")
+        if fc_start == -1:
+            logger.warning(f"No FC: found in content: {content[:200]}...")
             return ""
         
-        function_call_json = match.group(1)
+        # Find the opening brace after FC:
+        json_start = content.find("{", fc_start)
+        if json_start == -1:
+            logger.warning(f"No opening brace found after FC: in content: {content[:200]}...")
+            return ""
+        
+        # Count braces to find the complete JSON
+        brace_count = 0
+        json_end = -1
+        
+        for i in range(json_start, len(content)):
+            if content[i] == '{':
+                brace_count += 1
+            elif content[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    json_end = i + 1
+                    break
+        
+        if json_end == -1:
+            logger.warning(f"No closing brace found for function call in content: {content[:200]}...")
+            return ""
+        
+        # Extract the complete JSON
+        function_call_json = content[json_start:json_end]
+        
         # Clean up potential streaming artifacts
         function_call_json = re.sub(r'\s+', ' ', function_call_json)  # Replace multiple spaces/newlines with single space
         function_call_json = function_call_json.strip()
         
         logger.info(f"Extracted function call JSON: {function_call_json}")
         
-        function_call = json.loads(function_call_json)
+        try:
+            function_call = json.loads(function_call_json)
+        except json.JSONDecodeError as je:
+            logger.error(f"Failed to parse function call JSON: {function_call_json}, error: {je}")
+            return "Error: Invalid function call format"
         
         function_name = function_call.get("name")
         parameters = function_call.get("parameters", {})
@@ -299,7 +340,7 @@ async def process_function_call(content: str, project_name: str = None) -> str:
         if function_name == "get_context":
             query = parameters.get("query", "")
             if query:
-                context_result = await get_context(query, project_name)
+                context_result = await get_context_qdrant(query, project_name)
                 return f"Context found: {context_result}"
             else:
                 return "Error: No query provided for context search"

@@ -13,7 +13,7 @@ from openai import OpenAI
 from livekit.plugins import google
 from livekit.plugins import groq
 from utils.gemma_processor_ollama import process_gemma_ollama_chat
-from utils.tools import get_context
+from utils.tools import get_context_qdrant
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -26,7 +26,8 @@ from livekit.agents import (
     stt,
     utils,
     get_job_context,
-    FunctionTool
+    FunctionTool,
+    RunContext
 )
 from livekit.agents import AgentSession, Agent, RoomInputOptions
 from livekit.plugins import (
@@ -37,7 +38,7 @@ from livekit.plugins import (
     silero,
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from typing import AsyncIterable
+from typing import Any, AsyncIterable
 from faster_whisper import WhisperModel
 from livekit.plugins import aws
 
@@ -77,7 +78,19 @@ class Assistant(Agent):
         self._current_audio_session_id = None
         self.selected_project_id = None
         self.selected_project_name = None
-        super().__init__(instructions="""You are a helpful voice AI assistant.""")
+        super().__init__(instructions="""
+        You are a helpful voice AI assistant.
+        You have to guide user to resolve their issues.
+        Workflow:
+        - For a question or issue, get context first by calling "get_context" function.
+        - Do not answer any query without context.
+        - User provides you the latest screenshot of his screen through continuous screenshare feed.
+        - You must analyse the screen and answer/guide user based on the current screen situation.
+
+        Rule:
+        Your response should be **one step at a time**.
+        Response user as if you are a human in a call so do not format your answer, it should be raw text only.
+        """)
 
     async def llm_node(
         self,
@@ -88,14 +101,52 @@ class Assistant(Agent):
         # Use the Gemma Ollama processor for direct Ollama integration
         # This handles Gemma's system message limitations properly
         
+        # async for chunk_content in process_langgraph_chat(
+        #     chat_ctx, 
+        #     model=ChatOpenAI(
+        #         model="o4-mini",
+        #         temperature=1
+        #     ),
+        #     system_prompt="You are a helpful voice AI assistant.",
+        #     project_name=self.selected_project_name,
+        #     session=self.session,
+        # ):
+        #     yield chunk_content
+
         async for chunk_content in process_gemma_ollama_chat(
             chat_ctx, 
-            model="gemma3:12b",
-            ollama_url="http://localhost:11434/api/chat",
-            project_name=self.selected_project_name
+            project_name=self.selected_project_name,
         ):
             yield chunk_content
         
+        
+    @function_tool()
+    async def lookup_weather(
+        self,
+        context: RunContext,
+        location: str,
+    ) -> dict[str, Any]:
+        """Look up weather information for a given location.
+        
+        Args:
+            location: The location to look up weather information for.
+        """
+
+        return {"weather": "sunny", "temperature_f": 70}
+    
+    @function_tool()
+    async def get_context_for_user_query(
+        self,
+        context: RunContext,
+        query: str,
+    ) -> dict[str, Any]:
+        """Get content for a user query.
+        
+        Args:
+            query: The user query to get content for.
+        """
+
+        return await get_context_qdrant(query=query, project_name=self.selected_project_name)
 
     async def on_enter(self):
         room = get_job_context().room
@@ -282,7 +333,7 @@ async def entrypoint(ctx: JobContext):
         # llm=openai.LLM(
             
         #     model="gpt-4o",
-        #     timeout=5000
+        #     timeout=50000
         # ),
         # llm=openai.realtime.RealtimeModel(
         #     model="gpt-realtime-2025-08-28"
