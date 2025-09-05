@@ -157,10 +157,10 @@ async def get_context_qdrant(query: str, project_name: str = None) -> str:
                 # Format the context as simple text
                 context_text = ""
                 if description:
-                    context_text += f"<description>\n{description}\n"
+                    context_text += f"description:\n{description}\n"
                 
                 if tutorial_steps:
-                    context_text += "-----------------------\nSteps\n"
+                    context_text += "-----------------------\nSteps:\n"
                     for step in tutorial_steps:
                         context_text += f"{step}\n"
                 

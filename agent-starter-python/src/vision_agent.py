@@ -12,6 +12,7 @@ import aiohttp
 from openai import OpenAI
 from livekit.plugins import google
 from livekit.plugins import groq
+from utils.gemma_processor import process_gemma_chat
 from utils.gemma_processor_ollama import process_gemma_ollama_chat
 from utils.tools import get_context_qdrant
 from livekit.agents import (
@@ -79,17 +80,6 @@ class Assistant(Agent):
         self.selected_project_id = None
         self.selected_project_name = None
         super().__init__(instructions="""
-        You are a helpful voice AI assistant.
-        You have to guide user to resolve their issues.
-        Workflow:
-        - For a question or issue, get context first by calling "get_context" function.
-        - Do not answer any query without context.
-        - User provides you the latest screenshot of his screen through continuous screenshare feed.
-        - You must analyse the screen and answer/guide user based on the current screen situation.
-
-        Rule:
-        Your response should be **one step at a time**.
-        Response user as if you are a human in a call so do not format your answer, it should be raw text only.
         """)
 
     async def llm_node(
@@ -113,9 +103,18 @@ class Assistant(Agent):
         # ):
         #     yield chunk_content
 
-        async for chunk_content in process_gemma_ollama_chat(
+        # async for chunk_content in process_gemma_ollama_chat(
+        #     chat_ctx, 
+        #     project_name=self.selected_project_name,
+        # ):
+        #     yield chunk_content
+
+        async for chunk_content in process_gemma_chat(
             chat_ctx, 
+            model="google/gemma-3-27b-it",
             project_name=self.selected_project_name,
+            session=self.session,
+            base_url="http://216.81.245.29:47943/v1"
         ):
             yield chunk_content
         

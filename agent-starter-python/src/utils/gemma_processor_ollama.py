@@ -36,22 +36,23 @@ async def process_gemma_ollama_chat(
     
     # Add the detailed instructions about get_context function as system content
     function_instructions = """
-IMPORTANT: Always get context based on user query first by calling "get_context" function.
-IMPORTANT: Do not answer any query without context.
-You have to guide user to resolve their issues.                        
+You have to guide user to resolve their issues and problems.                        
 Your response should be **one step at a time**.
+Always find the documentation steps for the problem to solve.
+If user objects or unable to do what you are suggesting, you must fetch documentation steps for the problem.
+Strictly follow the documentation steps.
 User always provides you the latest screenshot of his screen.
 You must analyse the screen and answer user based on the current screen situation.
 Response user as if you are a human in a call so do not format your answer, it should be raw text only.
 You have access to functions. If you decide to invoke any of the function(s),
 You MUST put it in the format of
-FC:{"name": function name, "parameters": dictionary of argument name and its value}
+{"name": function name, "parameters": dictionary of argument name and its value}
 You SHOULD NOT include any other text in the response if you call a function.
 **Available functions**
 [
     {
         "name": "get_context",
-        "description": "Finds context based on user query",
+        "description": "Use to fetch context and documentation steps for the problem to solve",
         "parameters": {
             "type": "object",
             "properties": {
@@ -228,17 +229,27 @@ You SHOULD NOT include any other text in the response if you call a function.
                                         chunk_content = data["message"]["content"]
                                         
                                         # Check if we're currently in a function call or starting one
-                                        if "FC" in chunk_content and not in_function_call:
+                                        if "{" in chunk_content and not in_function_call:
                                             # Start of function call
                                             in_function_call = True
                                             function_buffer = chunk_content
                                             
                                             # Check if the function call is complete in this chunk
-                                            if "}" in chunk_content:
+                                            # Count braces to see if it's complete
+                                            brace_count = 0
+                                            for char in chunk_content:
+                                                if char == '{':
+                                                    brace_count += 1
+                                                elif char == '}':
+                                                    brace_count -= 1
+                                            
+                                            if brace_count == 0:
                                                 # Complete function call in single chunk
                                                 function_result = await process_function_call(function_buffer, project_name)
                                                 if function_result:
-                                                    yield function_result
+                                                    # Feed result back to LLM and yield its response
+                                                    async for response_chunk in feed_function_result_to_llm(function_result, messages, model, ollama_url):
+                                                        yield response_chunk
                                                 # Reset state
                                                 function_buffer = ""
                                                 in_function_call = False
@@ -246,12 +257,21 @@ You SHOULD NOT include any other text in the response if you call a function.
                                             # Continue accumulating function call
                                             function_buffer += chunk_content
                                             
-                                            # Check if function call is complete
-                                            if "}" in chunk_content:
+                                            # Check if function call is complete by counting braces
+                                            brace_count = 0
+                                            for char in function_buffer:
+                                                if char == '{':
+                                                    brace_count += 1
+                                                elif char == '}':
+                                                    brace_count -= 1
+                                            
+                                            if brace_count == 0:
                                                 # Function call complete, process it
                                                 function_result = await process_function_call(function_buffer, project_name)
                                                 if function_result:
-                                                    yield function_result
+                                                    # Feed result back to LLM and yield its response
+                                                    async for response_chunk in feed_function_result_to_llm(function_result, messages, model, ollama_url):
+                                                        yield response_chunk
                                                 # Reset state
                                                 function_buffer = ""
                                                 in_function_call = False
@@ -285,19 +305,13 @@ async def process_function_call(content: str, project_name: str = None) -> str:
         Function result or empty string if no function call
     """
     try:
-        # Extract function call from content with FC: format
+        # Extract function call from content - now it's direct JSON
         import re
         
-        # Find the start of FC:
-        fc_start = content.find("FC:")
-        if fc_start == -1:
-            logger.warning(f"No FC: found in content: {content[:200]}...")
-            return ""
-        
-        # Find the opening brace after FC:
-        json_start = content.find("{", fc_start)
+        # Find the first opening brace
+        json_start = content.find("{")
         if json_start == -1:
-            logger.warning(f"No opening brace found after FC: in content: {content[:200]}...")
+            logger.warning(f"No opening brace found in content: {content[:200]}...")
             return ""
         
         # Count braces to find the complete JSON
@@ -350,3 +364,69 @@ async def process_function_call(content: str, project_name: str = None) -> str:
     except Exception as e:
         logger.error(f"Error processing function call: {e}")
         return f"Error processing function call: {str(e)}"
+
+
+async def feed_function_result_to_llm(function_result: str, original_messages: list, model: str, ollama_url: str) -> AsyncIterable[str]:
+    """
+    Feed function result back to LLM as a user message and stream the response
+    
+    Args:
+        function_result: The result from the function call
+        original_messages: The original messages from the conversation
+        model: The model to use
+        ollama_url: The Ollama API endpoint URL
+        
+    Yields:
+        str: Text chunks from LLM response
+    """
+    try:
+        # Create a new messages list with the function result as a user message
+        new_messages = original_messages.copy()
+        
+        # Extract function name from the result if possible
+        function_name = "get_context"  # Default, could be extracted from function_result
+        
+        # Add the function result as a user message
+        result_message = {
+            "role": "user",
+            "content": f"{function_name} has a result:\n{function_result}"
+        }
+        new_messages.append(result_message)
+        
+        # Make a new call to Ollama
+        ollama_payload = {
+            "model": model,
+            "messages": new_messages,
+            "stream": True
+        }
+        
+        logger.info(f"Feeding function result back to LLM: {function_result[:100]}...")
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                ollama_url,
+                json=ollama_payload,
+                headers={"Content-Type": "application/json"}
+            ) as response:
+                if response.status == 200:
+                    async for line in response.content:
+                        if line:
+                            try:
+                                line_text = line.decode('utf-8').strip()
+                                if line_text:
+                                    data = json.loads(line_text)
+                                    if "message" in data and "content" in data["message"]:
+                                        chunk_content = data["message"]["content"]
+                                        yield chunk_content
+                            except json.JSONDecodeError:
+                                continue
+                            except Exception as e:
+                                logger.error(f"Error processing LLM response chunk: {e}")
+                                continue
+                else:
+                    logger.error(f"Ollama API error when feeding function result: {response.status}")
+                    yield "I had trouble processing the context information."
+                    
+    except Exception as e:
+        logger.error(f"Error feeding function result to LLM: {e}")
+        yield "I encountered an error while processing the function result."
