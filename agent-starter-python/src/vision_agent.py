@@ -14,6 +14,7 @@ from livekit.plugins import google
 from livekit.plugins import groq
 from utils.gemma_processor import process_gemma_chat
 from utils.gemma_processor_ollama import process_gemma_ollama_chat
+from utils.mistral_processor import process_mistral_chat
 from utils.tools import get_context_qdrant
 from livekit.agents import (
     Agent,
@@ -49,6 +50,7 @@ from livekit.agents.utils import AudioBuffer
 from typing import AsyncIterable, Optional
 from livekit.agents.utils.images import encode, EncodeOptions, ResizeOptions
 from livekit.agents.llm import ImageContent, function_tool, ChatContext, ChatMessage
+from livekit.plugins import mistralai
 
 load_dotenv()
 logger = logging.getLogger("voice-agent")
@@ -70,6 +72,7 @@ from utils.openai_processor import process_openai_chat
 from utils.langgraph_processor import process_langgraph_chat
 from utils.lg_react_agent_processor import process_langgraph_react_chat
 
+
 class Assistant(Agent):
     def __init__(self) -> None:
         self._latest_frame = None
@@ -79,8 +82,10 @@ class Assistant(Agent):
         self._current_audio_session_id = None
         self.selected_project_id = None
         self.selected_project_name = None
-        super().__init__(instructions="""
-        """)
+        super().__init__(
+            instructions="""
+You are a helpful voice assistant that can see through the user's camera/screen.
+""")
 
     async def llm_node(
         self,
@@ -109,44 +114,30 @@ class Assistant(Agent):
         # ):
         #     yield chunk_content
 
-        async for chunk_content in process_gemma_chat(
+        # async for chunk_content in process_gemma_chat(
+        #     chat_ctx, 
+        #     model="google/gemma-3-12b-it",
+        #     project_name=self.selected_project_name,
+        #     session=self.session,
+        #     base_url="http://10.31.20.36:8000/v1",
+        #     temperature=0.7,
+        # ):
+        #     yield chunk_content
+        
+        async for chunk_content in process_mistral_chat(
             chat_ctx, 
-            model="google/gemma-3-27b-it",
-            project_name=self.selected_project_name,
-            session=self.session,
-            base_url="http://216.81.245.29:47943/v1"
+            model="mistralai/Pixtral-12B-2409",
+            base_url="http://10.31.20.36:8000/v1",
         ):
             yield chunk_content
         
         
-    @function_tool()
-    async def lookup_weather(
-        self,
-        context: RunContext,
-        location: str,
-    ) -> dict[str, Any]:
-        """Look up weather information for a given location.
+        # async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
+        #     # Insert custom postprocessing here
+        #     yield chunk
         
-        Args:
-            location: The location to look up weather information for.
-        """
-
-        return {"weather": "sunny", "temperature_f": 70}
     
-    @function_tool()
-    async def get_context_for_user_query(
-        self,
-        context: RunContext,
-        query: str,
-    ) -> dict[str, Any]:
-        """Get content for a user query.
-        
-        Args:
-            query: The user query to get content for.
-        """
-
-        return await get_context_qdrant(query=query, project_name=self.selected_project_name)
-
+    
     async def on_enter(self):
         room = get_job_context().room
         _active_tasks = set()
@@ -344,12 +335,16 @@ async def entrypoint(ctx: JobContext):
         #     temperature=0.8,
         #     instructions="You are a helpful assistant",
         # ),
-        # llm=openai.LLM(timeout=5000).with_ollama(
-        #     model="gemma3:4b"
-        # ),
-        llm=aws.LLM(
-            # doesnt matter now
+        llm=openai.LLM(timeout=5000).with_ollama(
+            model="gemma3:4b"
         ),
+        # llm=openai.LLM(
+        #     base_url="http://10.31.20.36:8000/v1",
+        #     model="mistralai/Pixtral-12B-2409"
+        # ),
+        # llm=mistralai.LLM(
+        #     model="mistral-medium-latest"
+        # ),
         tts=deepgram.TTS(),
         vad=silero.VAD.load(
             activation_threshold=0.7

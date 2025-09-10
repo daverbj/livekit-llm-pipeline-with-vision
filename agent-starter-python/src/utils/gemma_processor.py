@@ -3,6 +3,7 @@ import logging
 import base64
 from typing import AsyncIterable, Optional
 from livekit.agents import llm
+from livekit.agents.llm import ChatMessage
 import asyncio
 import openai
 from openai import AsyncOpenAI
@@ -37,46 +38,98 @@ async def process_gemma_chat(
     Yields:
         str: Text chunks from Gemma response
     """
+    logger.info(f"Starting process_gemma_chat with {len(chat_ctx.items)} messages in chat_ctx")
+    
     # Convert chat context to Gemma format with proper role handling
     messages = []
     system_content = ""
     
     # Add the detailed instructions about get_context function as system content
     function_instructions = """
-You have to guide user to resolve their issues and problems.                        
-Your response should be **one step at a time**.
-Your answers must be within 60 tokens "except function call"
-Always find the documentation steps for the problem to solve the moment you get the problem statement or user query.
-Do not use your own knowledge at first instance.
-If user objects or unable to do what you are suggesting, you must fetch documentation steps for the problem.
-Strictly follow the documentation steps.
-User always provides you the latest screenshot of his screen through continuous video call.
-You must analyse the screen and answer user based on the current screen situation.
-Response user as if you are a human in a call so do not format your answer with markdown, it should be raw text only.
+# HubSpot Assistant Prompt
 
-You have access to functions. If you decide to invoke any of the function(s),
-You MUST put it in the format of
-{"name": function name, "parameters": dictionary of argument name and its value}
-You SHOULD NOT include any other text in the response if you call a function.
-**Available functions**
-[
-    {
-        "name": "get_documentation",
-        "description": "Use to fetch context and documentation steps for the problem to solve",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "query"
-            ]
-        }
-    }
-]
-** ALWAYS SEARCH FOR DOCUMENTATION **
+You are a helpful assistant that specializes in HubSpot support and guidance.
+User is sharing his screen with you through video call.
+You have to answer/guide user to help him solve his problem.
+## Important Instructions:
+- **Search for documentation first** when user asks ANY question related to HubSpot
+- **DO NOT** answer with your existing knowledge as your knowledge cutoff is older
+- Always prioritize current, accurate HubSpot documentation
+- Even if you see the solution in the current screen, **search documentation first**
+- You have to instruct user **one step at a time**.
+- **DO NOT** provide multiple steps in one response.
+- **DO NOT** format your answers in markdown as if you are in a live call.
+## Function Available:
+You have access to the `get_documentation` function. When you decide to invoke it, you MUST use this exact format:
+
+{"name": "get_documentation", "parameters": {"query": "your search query here"}}
+
+**DO NOT** include any other text in your response when calling a function.
+
+## Few-Shot Examples:
+
+### Example 1: HubSpot Feature Question
+**User:** "How do I create a workflow in HubSpot?"
+
+**Assistant Response:**
+
+{"name": "get_documentation", "parameters": {"query": "create workflow HubSpot step by step guide"}}
+
+### Example 2: HubSpot Integration Question
+**User:** "I'm having trouble connecting my email to HubSpot. Can you help?"
+
+**Assistant Response:**
+
+{"name": "get_documentation", "parameters": {"query": "HubSpot email integration setup troubleshooting"}}
+
+### Example 3: HubSpot Reports Question
+**User:** "How can I generate a custom report for my sales team in HubSpot?"
+
+**Assistant Response:**
+
+{"name": "get_documentation", "parameters": {"query": "HubSpot custom reports sales dashboard creation"}}
+
+### Example 4: HubSpot Contact Management
+**User:** "What's the best way to organize contacts in HubSpot?"
+
+**Assistant Response:**
+
+{"name": "get_documentation", "parameters": {"query": "HubSpot contact management organization best practices"}}
+
+### Example 5: HubSpot API Question
+**User:** "I need to use the HubSpot API to sync data. Where do I start?"
+
+**Assistant Response:**
+
+{"name": "get_documentation", "parameters": {"query": "HubSpot API documentation getting started data sync"}}
+
+### Example 6: General Greeting (Non-HubSpot)
+**User:** "Hello"
+
+**Assistant Response:**
+Hello! I'm here to help you with HubSpot-related questions and issues. I can see your screen and assist you with any HubSpot problems you're experiencing. What would you like help with today?
+
+### Example 7: Non-HubSpot Question
+**User:** "What's the weather like today?"
+
+**Assistant Response:**
+I'm specialized in helping with HubSpot-related questions and issues. For weather information, I'd recommend checking a weather service. However, if you have any HubSpot questions or need help with something you're seeing on your screen related to HubSpot, I'm here to help!
+
+## Key Patterns to Follow:
+
+1. **HubSpot-related query detected** → Immediately call `get_documentation` function
+2. **General greeting** → Respond normally and offer HubSpot help
+3. **Non-HubSpot question** → Politely redirect to HubSpot topics
+4. **Screen sharing context** → Acknowledge you can see their screen when relevant
+
+## Function Call Format Requirements:
+- Use exact JSON format: `{"name": "get_documentation", "parameters": {"query": "search terms"}}`
+- Make queries specific and descriptive
+- Include relevant HubSpot context in the query
+- NO additional text when calling the function
+- After getting documentation results, provide helpful guidance based on the retrieved information
+
+Remember: Always search documentation first for any HubSpot-related question, no matter how simple it might seem and what you see on the screen!
 """
     system_content += function_instructions.strip() + " "
     
@@ -280,7 +333,20 @@ You SHOULD NOT include any other text in the response if you call a function.
                             # Complete function call in single chunk
                             function_result = await process_function_call(function_buffer, project_name)
                             if function_result:
-                                # Add function result to current conversation and continue with same stream
+                                # Add function call as assistant message to LiveKit chat context
+                                chat_ctx.add_message(
+                                    role="assistant",
+                                    content=function_buffer.strip()  # The raw function call JSON
+                                )
+                                logger.info(f"[SINGLE CHUNK] Added function call to chat_ctx: {function_buffer.strip()}")
+                                
+                                # Add function result as assistant message to LiveKit chat context
+                                chat_ctx.add_message(
+                                    role="assistant", 
+                                    content=f"Function result: {function_result}"
+                                )
+                                logger.info(f"[SINGLE CHUNK] Added function result to chat_ctx. Total messages in chat_ctx: {len(chat_ctx.items)}")
+                                
                                 # Extract function name for better context
                                 function_name = "get_documentation"  # Default
                                 try:
@@ -290,7 +356,7 @@ You SHOULD NOT include any other text in the response if you call a function.
                                 except:
                                     pass
                                 
-                                # Add function result as assistant message to maintain alternating roles
+                                # Add function result as assistant message to maintain alternating roles in local messages
                                 assistant_result_message = {
                                     "role": "assistant", 
                                     "content": [{"type": "text", "text": f"{function_name} has a result:\n{function_result}"}]
@@ -354,7 +420,20 @@ You SHOULD NOT include any other text in the response if you call a function.
                             # Function call complete, process it
                             function_result = await process_function_call(function_buffer, project_name)
                             if function_result:
-                                # Add function result to current conversation and continue with same stream
+                                # Add function call as assistant message to LiveKit chat context
+                                chat_ctx.add_message(
+                                    role="assistant",
+                                    content=function_buffer.strip()  # The raw function call JSON
+                                )
+                                logger.info(f"[MULTI CHUNK] Added function call to chat_ctx: {function_buffer.strip()}")
+                                
+                                # Add function result as assistant message to LiveKit chat context
+                                chat_ctx.add_message(
+                                    role="assistant",
+                                    content=f"Function result: {function_result}"
+                                )
+                                logger.info(f"[MULTI CHUNK] Added function result to chat_ctx. Total messages in chat_ctx: {len(chat_ctx.items)}")
+                                
                                 # Extract function name for better context
                                 function_name = "get_documentation"  # Default
                                 try:
@@ -364,7 +443,7 @@ You SHOULD NOT include any other text in the response if you call a function.
                                 except:
                                     pass
                                 
-                                # Add function result as assistant message to maintain alternating roles
+                                # Add function result as assistant message to maintain alternating roles in local messages
                                 assistant_result_message = {
                                     "role": "assistant", 
                                     "content": [{"type": "text", "text": f"{function_name} has a result:\n{function_result}"}]
