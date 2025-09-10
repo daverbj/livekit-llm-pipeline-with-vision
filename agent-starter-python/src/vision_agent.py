@@ -82,6 +82,9 @@ class Assistant(Agent):
         self._current_audio_session_id = None
         self.selected_project_id = None
         self.selected_project_name = None
+        # Generate a unique thread ID for this conversation session
+        self._thread_id = f"thread_{uuid.uuid4().hex[:8]}"
+        logger.info(f"Assistant initialized with thread ID: {self._thread_id}")
         super().__init__(
             instructions="""
 You are a helpful voice assistant that can see through the user's camera/screen.
@@ -128,6 +131,7 @@ You are a helpful voice assistant that can see through the user's camera/screen.
             chat_ctx, 
             model="mistralai/Pixtral-12B-2409",
             base_url="http://10.31.20.36:8000/v1",
+            thread_id=self._thread_id,
         ):
             yield chunk_content
         

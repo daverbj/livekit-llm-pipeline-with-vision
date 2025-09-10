@@ -3,7 +3,7 @@ import logging
 import base64
 import re
 import uuid
-from typing import AsyncIterable, Optional, Dict, Any
+from typing import AsyncIterable, Optional, Dict, Any, Annotated
 from livekit.agents import llm
 import asyncio
 import openai
@@ -13,19 +13,50 @@ from .tools import get_context_qdrant
 import os
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from typing_extensions import TypedDict
 
 logger = logging.getLogger("mistral-processor")
 
+
+# Define the state for our LangGraph
+class State(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+
+checkpointer = InMemorySaver()
 
 async def process_mistral_chat(
     chat_ctx: llm.ChatContext,
     model: str = "gpt-4o",
     base_url: Optional[str] = None,
+    thread_id: Optional[str] = None,
 ) -> AsyncIterable[llm.ChatChunk]:
     
     # Create ChatOpenAI with streaming enabled
     _llm = ChatOpenAI(model=model, temperature=0.7, base_url=base_url, streaming=True)
+    
+    # Define the single node function
+    async def chat_node(state: State) -> State:
+        response = await _llm.ainvoke(state["messages"])
+        return {"messages": [response]}
+    
+    # Create the workflow
+    workflow = StateGraph(State)
+    workflow.add_node("chat", chat_node)
+    workflow.add_edge(START, "chat")
+    workflow.add_edge("chat", END)
+    
+    # Compile with checkpointer
+    
+    graph = workflow.compile(checkpointer=checkpointer)
+    
+    # Create a unique thread ID for this conversation
+    if thread_id is None:
+        thread_id = f"thread_{uuid.uuid4().hex[:8]}"
+    config = {"configurable": {"thread_id": thread_id}}
     
     # Get the last message from chat context and format it properly
     if chat_ctx.items:
@@ -81,26 +112,54 @@ async def process_mistral_chat(
             if content_text.strip():
                 message_content.append({"type": "text", "text": content_text})
         
-        # Create HumanMessage with multimodal content
+        # Create messages for the graph - only append the new human message
         if message_content:
-            messages = [
-                SystemMessage(content="You are a helpful assistant. You are excellent at understanding and describing images."),
-                HumanMessage(content=message_content)
-            ]
-            logger.info(f"Sending multimodal message with {len(message_content)} content items")
+            new_human_message = HumanMessage(content=message_content)
+            logger.info(f"Appending multimodal message with {len(message_content)} content items")
+        else:
+            new_human_message = HumanMessage(content="Hello")
+            logger.info("Appending default message")
         
-        # Stream directly from the LLM
-        async for chunk in _llm.astream(messages):
-            if chunk.content:
-                yield llm.ChatChunk(
-                    id="",
-                    delta=llm.ChoiceDelta(
-                        role="assistant",
-                        content=chunk.content,
-                        tool_calls=[]
-                    ),
-                    usage=None,
-                )
+        # Check if this is a new conversation (no existing state)
+        try:
+            # Try to get the current state to see if conversation exists
+            current_state = graph.get_state(config)
+            is_new_conversation = not current_state.values.get("messages", [])
+        except:
+            # If we can't get state, assume it's a new conversation
+            is_new_conversation = True
+        
+        # Prepare messages - include system message only for new conversations
+        if is_new_conversation:
+            messages_to_send = [
+                SystemMessage(content="You are a helpful assistant. You are excellent at understanding and describing images."),
+                new_human_message
+            ]
+            logger.info("New conversation: including system message")
+        else:
+            messages_to_send = [new_human_message]
+            logger.info("Continuing conversation: appending user message only")
+        
+        # Stream from the LangGraph
+        async for event in graph.astream(
+            {"messages": messages_to_send},
+            config=config,
+            stream_mode="messages"
+        ):
+            # Handle the tuple structure (message_chunk, metadata)
+            if isinstance(event, tuple) and len(event) == 2:
+                message_chunk, metadata = event
+                # Yield AI message content directly
+                if hasattr(message_chunk, 'content') and message_chunk.content:
+                    yield llm.ChatChunk(
+                        id="",
+                        delta=llm.ChoiceDelta(
+                            role="assistant",
+                            content=message_chunk.content,
+                            tool_calls=[]
+                        ),
+                        usage=None,
+                    )
     else:
         yield llm.ChatChunk(
             request_id="",
