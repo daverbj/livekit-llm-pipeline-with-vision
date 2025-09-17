@@ -72,6 +72,7 @@ from utils.openai_processor import process_openai_chat
 from utils.langgraph_processor import process_langgraph_chat
 from utils.lg_react_agent_processor import process_langgraph_react_chat
 
+from google.genai.types import Modality
 
 class Assistant(Agent):
     def __init__(self) -> None:
@@ -86,7 +87,7 @@ class Assistant(Agent):
         self._thread_id = f"thread_{uuid.uuid4().hex[:8]}"
         logger.info(f"Assistant initialized with thread ID: {self._thread_id}")
         super().__init__(
-            instructions="""
+            instructions=f"""
                               You are a helpful calling assistant.
                               User shares his screen image in video call with you.
                               You have to solve or guide user to help them to their issues.
@@ -105,80 +106,25 @@ class Assistant(Agent):
                                 4. DO NOT format your response in markdown or any other format - plain text only.
                                 5. ONE STEP AT A TIME - Do not provide multiple steps in one response.
             """)
-
-    async def llm_node(
-        self,
-        chat_ctx: llm.ChatContext,
-        tools: list[FunctionTool],
-        model_settings: ModelSettings
-    ) -> AsyncIterable[llm.ChatChunk]:
-        # Use the Gemma Ollama processor for direct Ollama integration
-        # This handles Gemma's system message limitations properly
-        
-        # async for chunk_content in process_langgraph_chat(
-        #     chat_ctx, 
-        #     model=ChatOpenAI(
-        #         model="o4-mini",
-        #         temperature=1
-        #     ),
-        #     system_prompt="You are a helpful voice AI assistant.",
-        #     project_name=self.selected_project_name,
-        #     session=self.session,
-        # ):
-        #     yield chunk_content
-
-        # async for chunk_content in process_gemma_ollama_chat(
-        #     chat_ctx, 
-        #     project_name=self.selected_project_name,
-        # ):
-        #     yield chunk_content
-
-        # async for chunk_content in process_gemma_chat(
-        #     chat_ctx, 
-        #     model="google/gemma-3-12b-it",
-        #     project_name=self.selected_project_name,
-        #     session=self.session,
-        #     base_url="http://10.31.20.36:8000/v1",
-        #     temperature=0.7,
-        # ):
-        #     yield chunk_content
-        
-        # async for chunk_content in process_mistral_chat(
-        #     chat_ctx, 
-        #     model="mistralai/Pixtral-12B-2409",
-        #     base_url="http://10.31.20.36:8000/v1",
-        #     thread_id=self._thread_id,
-        # ):
-        #     yield chunk_content
-        # async for chunk_content in process_mistral_chat(
-        #     chat_ctx, 
-        #     model="gpt-4o",
-        #     thread_id=self._thread_id,
-        # ):
-        #     yield chunk_content
-        
-        
-        async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
-            # Insert custom postprocessing here
-            yield chunk
         
     @function_tool()
     async def get_documentation(
         self,
         context: RunContext,
         query: str,
+        project_name: str = "hubspot"
     ) -> dict[str, Any]:
         """Get the documentation for based on user query.
 
         Args:
             query: The user query to get documentation for
         """
-        return await get_context_qdrant(query, project_name="hubspot")
+        return await get_context_qdrant(query, project_name=project_name)
     
     async def on_enter(self):
         room = get_job_context().room
         _active_tasks = set()
-        self.session.generate_reply(user_input="Greet the user short and crisp.", allow_interruptions=False)
+        self.session.generate_reply(user_input=f"You are providing assistance for {self.selected_project_name} so for get_documentation project name should be {self.selected_project_name}. Greet the user short and crisp.", allow_interruptions=False)
         async def async_handle_text_stream(reader, participant_identity):
             info = reader.info
             text = await reader.read_all()
@@ -356,37 +302,12 @@ class Assistant(Agent):
 
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        stt=groq.STT(),
-        # llm=openai.LLM(
-            
-        #     model="gpt-4o",
-        #     timeout=50000
-        # ),
-        # llm=openai.realtime.RealtimeModel(
-        #     model="gpt-realtime-2025-08-28"
-            
-        # ),
-        # llm=google.beta.realtime.RealtimeModel(
-        #     model="gemini-2.5-flash-preview-native-audio-dialog",
-        #     voice="Puck",
-        #     temperature=0.8,
-        #     instructions="You are a helpful assistant",
-        # ),
-        llm=openai.LLM(
-            model="gpt-4o",
+        llm=google.beta.realtime.RealtimeModel(
+            modalities=[Modality.AUDIO],
+            model="gemini-2.0-flash-exp",
+            voice="Puck",
             temperature=0.3,
-            timeout=50000
-        ),
-        # llm=openai.LLM(
-        #     base_url="http://10.31.20.36:8000/v1",
-        #     model="mistralai/Pixtral-12B-2409"
-        # ),
-        # llm=mistralai.LLM(
-        #     model="mistral-medium-latest"
-        # ),
-        tts=deepgram.TTS(),
-        vad=silero.VAD.load(
-            activation_threshold=0.7
+            instructions="You are a helpful assistant",
         ),
         turn_detection=MultilingualModel(),
         preemptive_generation=False

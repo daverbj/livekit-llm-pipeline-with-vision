@@ -6,11 +6,20 @@
     "configurations": [
 
         {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "LLM agent: vision_agent.py",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/agent-starter-python",
             "program": "src/vision_agent.py",
+            "console": "integratedTerminal",
+            "args": "dev"
+        },
+        {
+            "name": "realtime LLM agent: vision_agent_realtime.py",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/agent-starter-python",
+            "program": "src/vision_agent_realtime.py",
             "console": "integratedTerminal",
             "args": "dev"
         }

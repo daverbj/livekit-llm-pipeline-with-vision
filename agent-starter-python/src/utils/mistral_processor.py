@@ -13,11 +13,12 @@ from .tools import get_context_qdrant
 import os
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage, ToolMessage, AIMessage
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode, tools_condition
 from typing_extensions import TypedDict
 
 logger = logging.getLogger("mistral-processor")
@@ -48,15 +49,21 @@ def get_weather(city: str) -> str:
         return f"The weather in {city} is: {weather_data[city_lower]}"
     else:
         return f"Sorry, I don't have weather data for {city}. Available cities: {', '.join(weather_data.keys())}"
+@tool
+def get_documentation(query: str) -> str:
+    """Get the documentation for based on user query.
 
+    Args:
+        query: The user query to get documentation for
+    """
+    return get_context_qdrant(query, project_name="hubspot")
 
 # Define the state for our LangGraph
 class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 # Set up tools
-tools = [get_weather]
-tools_by_name = {tool.name: tool for tool in tools}
+tools = [get_weather, get_documentation]
 
 checkpointer = InMemorySaver()
 
@@ -68,66 +75,35 @@ async def process_mistral_chat(
 ) -> AsyncIterable[llm.ChatChunk]:
     
     # Create ChatOpenAI with tools enabled
-    _llm = ChatOpenAI(model=model, temperature=0.7, base_url=base_url, streaming=True)
+    _llm = ChatOpenAI(model=model, temperature=1, base_url=base_url, streaming=True)
     llm_with_tools = _llm.bind_tools(tools)
     
-    # Define the LLM node
-    async def llm_call(state: State) -> State:
+    # Define the chatbot node (equivalent to the main LLM node)
+    async def chatbot(state: State) -> State:
         """LLM decides whether to call a tool or not"""
         response = await llm_with_tools.ainvoke(state["messages"])
         return {"messages": [response]}
     
-    # Define the tool node
-    async def tool_node(state: State) -> State:
-        """Performs the tool call"""
-        result = []
-        last_message = state["messages"][-1]
-        
-        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-            for tool_call in last_message.tool_calls:
-                tool = tools_by_name[tool_call["name"]]
-                try:
-                    observation = await asyncio.to_thread(tool.invoke, tool_call["args"])
-                    result.append(ToolMessage(
-                        content=str(observation), 
-                        tool_call_id=tool_call["id"]
-                    ))
-                except Exception as e:
-                    logger.error(f"Error executing tool {tool_call['name']}: {e}")
-                    result.append(ToolMessage(
-                        content=f"Error executing tool: {str(e)}", 
-                        tool_call_id=tool_call["id"]
-                    ))
-        
-        return {"messages": result}
+    # Use prebuilt ToolNode instead of custom tool_node
+    tool_node = ToolNode(tools=tools)
     
-    # Define logic to determine whether to continue or end
-    def should_continue(state: State):
-        """Decide if we should continue the loop or stop based upon whether the LLM made a tool call"""
-        messages = state["messages"]
-        last_message = messages[-1]
-        
-        # If the LLM makes a tool call, then perform an action
-        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-            return "tool_node"
-        # Otherwise, we stop (reply to the user)
-        return END
-    
-    # Build workflow with tools
+    # Build workflow with tools using prebuilt components
     workflow = StateGraph(State)
     
     # Add nodes
-    workflow.add_node("llm_call", llm_call)
-    workflow.add_node("tool_node", tool_node)
+    workflow.add_node("chatbot", chatbot)
+    workflow.add_node("tools", tool_node)
     
-    # Add edges to connect nodes
-    workflow.add_edge(START, "llm_call")
+    # Add edges to connect nodes using prebuilt tools_condition
+    workflow.add_edge(START, "chatbot")
     workflow.add_conditional_edges(
-        "llm_call",
-        should_continue,
-        ["tool_node", END]
+        "chatbot",
+        tools_condition,
+        # The tools_condition returns "tools" if tool calls are present, "__end__" if not
+        {"tools": "tools", "__end__": END}
     )
-    workflow.add_edge("tool_node", "llm_call")
+    # Any time a tool is called, we return to the chatbot to decide the next step
+    workflow.add_edge("tools", "chatbot")
     
     # Compile with checkpointer
     graph = workflow.compile(checkpointer=checkpointer)
@@ -211,7 +187,24 @@ async def process_mistral_chat(
         # Prepare messages - include system message only for new conversations
         if is_new_conversation:
             messages_to_send = [
-                SystemMessage(content="You are a helpful assistant. You are excellent at understanding and describing images. You can also get weather information for cities using the get_weather tool. When you receive tool results, interpret them and provide a natural, helpful response to the user."),
+                SystemMessage(content="""
+                              You are a helpful calling assistant.
+                              User can share his screen image in video call with you.
+                              You have to solve or guide user to help them to their issues.
+                              You must guide user one step at a time.
+                              Your workflow is:
+                                1. User asks a question or shares an issue.
+                                2. Get documentation by calling the get_documentation tool.
+                                3. Check the image of the screen shared by user.
+                                4. Analyse and determine user's current screen.
+                                5. Guide user the next step.
+                                6. Repeat until issue is resolved.
+                              IMPORTANT: 
+                                1. Always call the get_documentation function to get relevant documentation and context based on user's query.
+                                2. Stick to the provided documentation and do not make up steps.
+                                3. DO NOT format your response in markdown or any other format - plain text only.
+                                4. ONE STEP AT A TIME - Do not provide multiple steps in one response.
+                              """),
                 new_human_message
             ]
             logger.info("New conversation: including system message")
@@ -220,43 +213,69 @@ async def process_mistral_chat(
             logger.info("Continuing conversation: appending user message only")
         
         # Stream from the LangGraph
+        accumulated_content = ""
+        in_tool_call_json = False
+        bracket_count = 0
+        
         async for event in graph.astream(
             {"messages": messages_to_send},
             config=config,
             stream_mode="messages"
         ):
-            # Handle the tuple structure (message_chunk, metadata)
-            if isinstance(event, tuple) and len(event) == 2:
-                message_chunk, metadata = event
+            message_chunk, metadata = event
+            
+            # Only process AIMessage chunks that have actual text content
+            if (isinstance(message_chunk, AIMessage) and 
+                isinstance(message_chunk.content, str) and 
+                message_chunk.content.strip() and 
+                not getattr(message_chunk, 'tool_calls', None)):
                 
-                # Log message type for debugging
-                logger.debug(f"Message chunk type: {type(message_chunk)}, has content: {hasattr(message_chunk, 'content')}")
-                if hasattr(message_chunk, 'type'):
-                    logger.debug(f"Message type: {message_chunk.type}")
+                content = message_chunk.content
+                accumulated_content += content
                 
-                # Only process messages with content
-                if hasattr(message_chunk, 'content') and message_chunk.content:
-                    # Skip ToolMessage instances - these are internal
-                    if isinstance(message_chunk, ToolMessage):
-                        logger.debug("Skipping ToolMessage")
-                        continue
+                # Check if we're starting a JSON structure
+                if '[' in content and not in_tool_call_json:
+                    in_tool_call_json = True
+                    bracket_count = content.count('[') - content.count(']')
+                    print(f"❌ Starting JSON block detection")
+                    continue
+                
+                # If we're in a JSON block, track brackets
+                if in_tool_call_json:
+                    bracket_count += content.count('[') - content.count(']')
                     
-                    # Skip SystemMessage and HumanMessage instances
-                    if isinstance(message_chunk, (SystemMessage, HumanMessage)):
-                        logger.debug(f"Skipping {type(message_chunk).__name__}")
+                    # Check if JSON block is complete
+                    if bracket_count <= 0:
+                        in_tool_call_json = False
+                        bracket_count = 0
+                        accumulated_content = ""
+                        print(f"❌ Ending JSON block detection")
                         continue
-                    
-                    # Yield all other messages (should be AI assistant responses)
-                    logger.debug(f"Yielding message content: {str(message_chunk.content)[:50]}...")
-                    yield llm.ChatChunk(
-                        id="",
-                        delta=llm.ChoiceDelta(
-                            role="assistant",
-                            content=message_chunk.content,
-                            tool_calls=[]
-                        ),
-                        usage=None,
-                    )
+                    else:
+                        print(f"❌ Skipping JSON content: {content}")
+                        continue
+                
+                # If we're not in a JSON block, check for other tool call indicators
+                if ('"name":' in content or '"arguments":' in content or
+                    'get_documentation' in content or 'get_weather' in content or
+                    content.strip() in ['{', '}', '"]', '"}']):
+                    print(f"❌ Skipping tool call indicator: {content}")
+                    continue
+                
+                # If we get here, it's legitimate content
+                print(f"✅ Yielding AI content: {content}")
+                yield llm.ChatChunk(
+                    id="",
+                    delta=llm.ChoiceDelta(
+                        role="assistant",
+                        content=content,
+                        tool_calls=[]
+                    ),
+                    usage=None,
+                )
+            else:
+                print(f"❌ Skipping message: {type(message_chunk).__name__}")
+                
     else:
         yield llm.ChatChunk(
             request_id="",
@@ -266,6 +285,3 @@ async def process_mistral_chat(
             ),
             index=0
         )
-
-
-    
